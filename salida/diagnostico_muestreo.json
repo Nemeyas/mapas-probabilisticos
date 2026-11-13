@@ -1,0 +1,49 @@
+{
+  "epsilon": 0.05,
+  "ancla": "Comarca",
+  "semillas": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "n_muestras_por_cadena": 20000,
+  "descarte": 8000,
+  "segundos": 11.5,
+  "gelman_rubin_peor": 1.0012869144295533,
+  "tamano_efectivo_min": 2928.9918088953495,
+  "cadenas": [
+    {
+      "tasa_aceptacion": 0.3823096552934664,
+      "salto_final": 0.15960119282812493,
+      "log_densidad_media": -20.21645056441574,
+      "semilla": 1,
+      "n_muestras": 20000,
+      "descarte": 8000
+    },
+    {
+      "tasa_aceptacion": 0.3423211770159639,
+      "salto_final": 0.18354137175234367,
+      "log_densidad_media": -19.924146412778832,
+      "semilla": 2,
+      "n_muestras": 20000,
+      "descarte": 8000
+    },
+    {
+      "tasa_aceptacion": 0.3885655905557881,
+      "salto_final": 0.15960119282812493,
+      "log_densidad_media": -20.54380806824445,
+      "semilla": 3,
+      "n_muestras": 20000,
+      "descarte": 8000
+    },
+    {
+      "tasa_aceptacion": 0.38425394596492174,
+      "salto_final": 0.15960119282812493,
+      "log_densidad_media": -20.331038986336818,
+      "semilla": 4,
+      "n_muestras": 20000,
+      "descarte": 8000
+    }
+  ]
+}

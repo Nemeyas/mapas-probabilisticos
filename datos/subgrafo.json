@@ -1,0 +1,216 @@
+{
+  "fuente": "/mnt/user-data/uploads/Seminario/5 Sistema base/experimentos/resultados/con_ambiguas/run_01/json/map_relations.json",
+  "nota": "Extraccion congelada de run_01 publicada por Diaz Ureta y Mercado Meza. No se invoco el modelo de lenguaje.",
+  "lugares": [
+    "Comarca",
+    "Hobbiton",
+    "Bree",
+    "Rivendel",
+    "Valle",
+    "Erebor",
+    "Fornost",
+    "Norburgo",
+    "Bolsón Cerrado",
+    "Delagua",
+    "Quebradas",
+    "Tierras de Tuk"
+  ],
+  "relaciones": [
+    {
+      "origen": "Bree",
+      "destino": "Comarca",
+      "tipo": "OESTE_DE"
+    },
+    {
+      "origen": "Tierras de Tuk",
+      "destino": "Comarca",
+      "tipo": "CERCA_DE"
+    },
+    {
+      "origen": "Fornost",
+      "destino": "Norburgo",
+      "tipo": "CERCA_DE"
+    },
+    {
+      "origen": "Norburgo",
+      "destino": "Comarca",
+      "tipo": "NORTE_DE"
+    },
+    {
+      "origen": "Bolsón Cerrado",
+      "destino": "Comarca",
+      "tipo": "CERCA_DE"
+    },
+    {
+      "origen": "Erebor",
+      "destino": "Valle",
+      "tipo": "CERCA_DE"
+    },
+    {
+      "origen": "Rivendel",
+      "destino": "Comarca",
+      "tipo": "CONECTA"
+    },
+    {
+      "origen": "Comarca",
+      "destino": "Hobbiton",
+      "tipo": "CONECTA"
+    },
+    {
+      "origen": "Bree",
+      "destino": "Comarca",
+      "tipo": "CERCA_DE"
+    },
+    {
+      "origen": "Hobbiton",
+      "destino": "Delagua",
+      "tipo": "CERCA_DE"
+    },
+    {
+      "origen": "Bolsón Cerrado",
+      "destino": "Hobbiton",
+      "tipo": "CERCA_DE"
+    },
+    {
+      "origen": "Hobbiton",
+      "destino": "Comarca",
+      "tipo": "CERCA_DE"
+    },
+    {
+      "origen": "Delagua",
+      "destino": "Comarca",
+      "tipo": "CERCA_DE"
+    },
+    {
+      "origen": "Rivendel",
+      "destino": "Comarca",
+      "tipo": "ESTE_DE"
+    },
+    {
+      "origen": "Bolsón Cerrado",
+      "destino": "Comarca",
+      "tipo": "CONECTA"
+    },
+    {
+      "origen": "Tierras de Tuk",
+      "destino": "Hobbiton",
+      "tipo": "OESTE_DE"
+    },
+    {
+      "origen": "Hobbiton",
+      "destino": "Comarca",
+      "tipo": "CONECTA"
+    },
+    {
+      "origen": "Valle",
+      "destino": "Rivendel",
+      "tipo": "CONECTA"
+    },
+    {
+      "origen": "Comarca",
+      "destino": "Valle",
+      "tipo": "CERCA_DE"
+    },
+    {
+      "origen": "Quebradas",
+      "destino": "Bree",
+      "tipo": "CERCA_DE"
+    }
+  ],
+  "resumen": {
+    "n_lugares": 12,
+    "n_relaciones": 20,
+    "por_tipo": {
+      "OESTE_DE": 2,
+      "CERCA_DE": 11,
+      "NORTE_DE": 1,
+      "CONECTA": 5,
+      "ESTE_DE": 1
+    },
+    "con_verdad_conocida": [
+      "Bree",
+      "Comarca",
+      "Erebor",
+      "Fornost",
+      "Hobbiton",
+      "Rivendel",
+      "Valle"
+    ]
+  },
+  "verdad_referencia": {
+    "Bree": [
+      0.384,
+      0.663
+    ],
+    "Erebor": [
+      0.752,
+      0.8069999999999999
+    ],
+    "Fornost": [
+      0.36,
+      0.75
+    ],
+    "Hobbiton": [
+      0.3,
+      0.687
+    ],
+    "Comarca": [
+      0.26,
+      0.6699999999999999
+    ],
+    "Puertos Grises": [
+      0.12,
+      0.667
+    ],
+    "Rivendel": [
+      0.58,
+      0.683
+    ],
+    "Tharbad": [
+      0.42,
+      0.583
+    ],
+    "Valle": [
+      0.772,
+      0.793
+    ]
+  },
+  "sistema_base": {
+    "Bree": [
+      0.465,
+      0.485
+    ],
+    "Erebor": [
+      0.621,
+      0.7170000000000001
+    ],
+    "Fornost": [
+      0.464,
+      0.775
+    ],
+    "Hobbiton": [
+      0.472,
+      0.61
+    ],
+    "Comarca": [
+      0.507,
+      0.607
+    ],
+    "Puertos Grises": [
+      0.319,
+      0.7050000000000001
+    ],
+    "Rivendel": [
+      0.66,
+      0.647
+    ],
+    "Tharbad": [
+      0.755,
+      0.802
+    ],
+    "Valle": [
+      0.593,
+      0.659
+    ]
+  }
+}

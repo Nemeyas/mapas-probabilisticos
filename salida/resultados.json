@@ -1,0 +1,154 @@
+{
+  "subgrafo": {
+    "n_lugares": 12,
+    "n_relaciones": 20,
+    "por_tipo": {
+      "OESTE_DE": 2,
+      "CERCA_DE": 11,
+      "NORTE_DE": 1,
+      "CONECTA": 5,
+      "ESTE_DE": 1
+    },
+    "con_verdad_conocida": [
+      "Bree",
+      "Comarca",
+      "Erebor",
+      "Fornost",
+      "Hobbiton",
+      "Rivendel",
+      "Valle"
+    ]
+  },
+  "ecsr_modelo": 0.5720762500000001,
+  "csr_map": 0.95,
+  "csr_media_posterior": 0.8,
+  "ecsr_desviacion": 0.10530148522681143,
+  "comparacion_marco_oficial": {
+    "lugares": [
+      "Comarca",
+      "Hobbiton",
+      "Bree",
+      "Rivendel",
+      "Valle",
+      "Erebor",
+      "Fornost"
+    ],
+    "n_relaciones": 10,
+    "csr_sistema_base": 0.7,
+    "csr_modelo_map": 0.8,
+    "csr_grafo_oficial": 0.5
+  },
+  "csr_sistema_base_grafo_completo": 0.7,
+  "nitidez_media": 0.20505208333333338,
+  "areas_creibles": {
+    "Comarca": 0.025625000000000005,
+    "Hobbiton": 0.03937500000000001,
+    "Bree": 0.20625000000000004,
+    "Rivendel": 0.07500000000000001,
+    "Valle": 0.11437500000000002,
+    "Erebor": 0.4543750000000001,
+    "Fornost": 0.4762500000000001,
+    "Norburgo": 0.24562500000000004,
+    "Bolsón Cerrado": 0.04812500000000001,
+    "Delagua": 0.08437500000000002,
+    "Quebradas": 0.4581250000000001,
+    "Tierras de Tuk": 0.23312500000000005
+  },
+  "grado_por_lugar": {
+    "Comarca": 13,
+    "Hobbiton": 6,
+    "Bree": 3,
+    "Rivendel": 3,
+    "Valle": 3,
+    "Erebor": 1,
+    "Fornost": 1,
+    "Norburgo": 2,
+    "Bolsón Cerrado": 3,
+    "Delagua": 2,
+    "Quebradas": 1,
+    "Tierras de Tuk": 2
+  },
+  "correlacion_grado_area": -0.5986248326885034,
+  "calibracion": {
+    "niveles": [
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      0.95
+    ],
+    "cobertura": [
+      0.42857142857142855,
+      0.5714285714285714,
+      0.5714285714285714,
+      0.5714285714285714,
+      0.7142857142857143,
+      0.7142857142857143
+    ],
+    "ece": 0.14642857142857144
+  },
+  "similitud_posicional_modelo": 88.00669367809594,
+  "similitud_posicional_base": 87.71506325993172,
+  "probabilidad_por_relacion": {
+    "Bree OESTE_DE Comarca": 0.7202625,
+    "Tierras de Tuk CERCA_DE Comarca": 0.1885125,
+    "Fornost CERCA_DE Norburgo": 0.183375,
+    "Norburgo NORTE_DE Comarca": 0.698725,
+    "Bolsón Cerrado CERCA_DE Comarca": 0.58935,
+    "Erebor CERCA_DE Valle": 0.1821625,
+    "Rivendel CONECTA Comarca": 0.7635125,
+    "Comarca CONECTA Hobbiton": 0.996875,
+    "Bree CERCA_DE Comarca": 0.1942375,
+    "Hobbiton CERCA_DE Delagua": 0.486375,
+    "Bolsón Cerrado CERCA_DE Hobbiton": 0.57385,
+    "Hobbiton CERCA_DE Comarca": 0.6651,
+    "Delagua CERCA_DE Comarca": 0.4928125,
+    "Rivendel ESTE_DE Comarca": 0.7291625,
+    "Bolsón Cerrado CONECTA Comarca": 0.9781125,
+    "Tierras de Tuk OESTE_DE Hobbiton": 0.70505,
+    "Hobbiton CONECTA Comarca": 0.996875,
+    "Valle CONECTA Rivendel": 0.7597125,
+    "Comarca CERCA_DE Valle": 0.348525,
+    "Quebradas CERCA_DE Bree": 0.1889375
+  },
+  "barrido_epsilon": [
+    {
+      "epsilon": 0.0,
+      "ecsr": 0.72155,
+      "nitidez": 0.0126953125,
+      "ece": 0.6940476190476191
+    },
+    {
+      "epsilon": 0.01,
+      "ecsr": 0.67915,
+      "nitidez": 0.040120442708333336,
+      "ece": 0.45595238095238094
+    },
+    {
+      "epsilon": 0.02,
+      "ecsr": 0.6540666666666666,
+      "nitidez": 0.10196940104166667,
+      "ece": 0.3130952380952381
+    },
+    {
+      "epsilon": 0.05,
+      "ecsr": 0.5659083333333333,
+      "nitidez": 0.2021484375,
+      "ece": 0.2654761904761905
+    },
+    {
+      "epsilon": 0.1,
+      "ecsr": 0.47211666666666663,
+      "nitidez": 0.333251953125,
+      "ece": 0.12261904761904763
+    },
+    {
+      "epsilon": 0.2,
+      "ecsr": 0.33098333333333335,
+      "nitidez": 0.5302734375,
+      "ece": 0.07500000000000002
+    }
+  ],
+  "escala_alineamiento": 0.8702849583584442
+}

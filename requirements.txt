@@ -1,0 +1,4 @@
+# Dependencias del prototipo. Sin versiones fijas a proposito: varias de
+# las ultimas versiones exigen Python 3.12 o superior y rompen en 3.11.
+numpy
+matplotlib
