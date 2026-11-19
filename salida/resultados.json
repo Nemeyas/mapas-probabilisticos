@@ -1,74 +1,116 @@
 {
   "subgrafo": {
     "n_lugares": 12,
-    "n_relaciones": 20,
+    "n_relaciones": 23,
     "por_tipo": {
-      "OESTE_DE": 2,
-      "CERCA_DE": 11,
+      "CERCA_DE": 8,
+      "ESTE_DE": 4,
+      "CONECTA": 9,
       "NORTE_DE": 1,
-      "CONECTA": 5,
-      "ESTE_DE": 1
+      "OESTE_DE": 1
     },
     "con_verdad_conocida": [
       "Bree",
       "Comarca",
-      "Erebor",
       "Fornost",
       "Hobbiton",
-      "Rivendel",
-      "Valle"
+      "Rivendel"
     ]
   },
-  "ecsr_modelo": 0.5720762500000001,
-  "csr_map": 0.95,
-  "csr_media_posterior": 0.8,
-  "ecsr_desviacion": 0.10530148522681143,
+  "ecsr_modelo": 0.7162657608695652,
+  "csr_map": 0.9565217391304348,
+  "csr_media_posterior": 0.9565217391304348,
+  "ecsr_desviacion": 0.09570789293982397,
   "comparacion_marco_oficial": {
     "lugares": [
       "Comarca",
-      "Hobbiton",
       "Bree",
       "Rivendel",
-      "Valle",
-      "Erebor",
+      "Hobbiton",
       "Fornost"
     ],
-    "n_relaciones": 10,
-    "csr_sistema_base": 0.7,
-    "csr_modelo_map": 0.8,
-    "csr_grafo_oficial": 0.5
+    "n_relaciones": 9,
+    "csr_sistema_base": 0.8888888888888888,
+    "csr_modelo_map": 0.7777777777777778,
+    "csr_grafo_oficial": 0.7777777777777778
+  },
+  "sensibilidad_csr_al_umbral": [
+    {
+      "d0_cerca": 0.08,
+      "d0_conecta": 0.2,
+      "csr_base": 0.7777777777777778,
+      "csr_modelo": 0.6666666666666666,
+      "csr_oficial": 0.7777777777777778,
+      "ganador": "sistema base"
+    },
+    {
+      "d0_cerca": 0.12,
+      "d0_conecta": 0.2,
+      "csr_base": 0.8888888888888888,
+      "csr_modelo": 0.7777777777777778,
+      "csr_oficial": 0.7777777777777778,
+      "ganador": "sistema base"
+    },
+    {
+      "d0_cerca": 0.12,
+      "d0_conecta": 0.13,
+      "csr_base": 0.6666666666666666,
+      "csr_modelo": 0.7777777777777778,
+      "csr_oficial": 0.6666666666666666,
+      "ganador": "modelo"
+    },
+    {
+      "d0_cerca": 0.15,
+      "d0_conecta": 0.2,
+      "csr_base": 0.8888888888888888,
+      "csr_modelo": 0.8888888888888888,
+      "csr_oficial": 0.8888888888888888,
+      "ganador": "empate"
+    },
+    {
+      "d0_cerca": 0.2,
+      "d0_conecta": 0.25,
+      "csr_base": 0.8888888888888888,
+      "csr_modelo": 0.8888888888888888,
+      "csr_oficial": 0.8888888888888888,
+      "ganador": "empate"
+    }
+  ],
+  "escala_regla_comun": {
+    "base": 0.2350841906841225,
+    "modelo": 1.6484275636721133
   },
   "csr_sistema_base_grafo_completo": 0.7,
-  "nitidez_media": 0.20505208333333338,
+  "nitidez_media": 0.33088541666666677,
   "areas_creibles": {
-    "Comarca": 0.025625000000000005,
-    "Hobbiton": 0.03937500000000001,
-    "Bree": 0.20625000000000004,
-    "Rivendel": 0.07500000000000001,
-    "Valle": 0.11437500000000002,
-    "Erebor": 0.4543750000000001,
-    "Fornost": 0.4762500000000001,
-    "Norburgo": 0.24562500000000004,
-    "Bolsón Cerrado": 0.04812500000000001,
-    "Delagua": 0.08437500000000002,
-    "Quebradas": 0.4581250000000001,
-    "Tierras de Tuk": 0.23312500000000005
+    "Comarca": 0.04812500000000001,
+    "Bree": 0.11500000000000002,
+    "Rivendel": 0.18812500000000004,
+    "Hobbiton": 0.10750000000000003,
+    "Fornost": 0.4625000000000001,
+    "Bolsón Cerrado": 0.13375000000000004,
+    "Bosque Negro": 0.7575000000000002,
+    "Eriador": 0.3837500000000001,
+    "Delagua": 0.16250000000000003,
+    "El Dragón Verde": 0.23875000000000005,
+    "Norburgo": 0.6600000000000001,
+    "Los Gamos": 0.7131250000000001
   },
   "grado_por_lugar": {
-    "Comarca": 13,
-    "Hobbiton": 6,
-    "Bree": 3,
-    "Rivendel": 3,
-    "Valle": 3,
-    "Erebor": 1,
-    "Fornost": 1,
-    "Norburgo": 2,
+    "Comarca": 15,
+    "Bree": 4,
+    "Rivendel": 4,
+    "Hobbiton": 5,
+    "Fornost": 2,
     "Bolsón Cerrado": 3,
-    "Delagua": 2,
-    "Quebradas": 1,
-    "Tierras de Tuk": 2
+    "Bosque Negro": 3,
+    "Eriador": 2,
+    "Delagua": 3,
+    "El Dragón Verde": 2,
+    "Norburgo": 2,
+    "Los Gamos": 1
   },
-  "correlacion_grado_area": -0.5986248326885034,
+  "correlacion_grado_area": -0.5154558319024833,
   "calibracion": {
     "niveles": [
       0.5,
@@ -79,76 +121,79 @@
       0.95
     ],
     "cobertura": [
-      0.42857142857142855,
-      0.5714285714285714,
-      0.5714285714285714,
-      0.5714285714285714,
-      0.7142857142857143,
-      0.7142857142857143
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
     ],
-    "ece": 0.14642857142857144
+    "ece": 0.25833333333333336
   },
-  "similitud_posicional_modelo": 88.00669367809594,
-  "similitud_posicional_base": 87.71506325993172,
+  "similitud_posicional_modelo": 96.63292039546559,
+  "similitud_posicional_base": 93.49874674604945,
   "probabilidad_por_relacion": {
-    "Bree OESTE_DE Comarca": 0.7202625,
-    "Tierras de Tuk CERCA_DE Comarca": 0.1885125,
-    "Fornost CERCA_DE Norburgo": 0.183375,
-    "Norburgo NORTE_DE Comarca": 0.698725,
-    "Bolsón Cerrado CERCA_DE Comarca": 0.58935,
-    "Erebor CERCA_DE Valle": 0.1821625,
-    "Rivendel CONECTA Comarca": 0.7635125,
-    "Comarca CONECTA Hobbiton": 0.996875,
-    "Bree CERCA_DE Comarca": 0.1942375,
-    "Hobbiton CERCA_DE Delagua": 0.486375,
-    "Bolsón Cerrado CERCA_DE Hobbiton": 0.57385,
-    "Hobbiton CERCA_DE Comarca": 0.6651,
-    "Delagua CERCA_DE Comarca": 0.4928125,
-    "Rivendel ESTE_DE Comarca": 0.7291625,
-    "Bolsón Cerrado CONECTA Comarca": 0.9781125,
-    "Tierras de Tuk OESTE_DE Hobbiton": 0.70505,
-    "Hobbiton CONECTA Comarca": 0.996875,
-    "Valle CONECTA Rivendel": 0.7597125,
-    "Comarca CERCA_DE Valle": 0.348525,
-    "Quebradas CERCA_DE Bree": 0.1889375
+    "Eriador CERCA_DE Bosque Negro": 0.4358375,
+    "Bree ESTE_DE Comarca": 0.7705625,
+    "Fornost CONECTA Comarca": 0.60665,
+    "Bree CONECTA Comarca": 0.92845,
+    "Fornost CONECTA Norburgo": 0.5839625,
+    "Norburgo NORTE_DE Comarca": 0.7054375,
+    "Bolsón Cerrado CERCA_DE Comarca": 0.7291125,
+    "Rivendel CERCA_DE Comarca": 0.39555,
+    "Eriador CONECTA Comarca": 0.6845875,
+    "Bree CONECTA Rivendel": 0.8342625,
+    "Bolsón Cerrado CERCA_DE Hobbiton": 0.75465,
+    "Delagua CERCA_DE Hobbiton": 0.666475,
+    "Hobbiton CONECTA Comarca": 0.99265,
+    "Bolsón Cerrado CONECTA Hobbiton": 0.9801375,
+    "El Dragón Verde CERCA_DE Delagua": 0.5934625,
+    "El Dragón Verde CONECTA Comarca": 0.834925,
+    "Delagua CONECTA Comarca": 0.9324125,
+    "Bosque Negro ESTE_DE Comarca": 0.486,
+    "Hobbiton CERCA_DE Comarca": 0.807575,
+    "Los Gamos ESTE_DE Comarca": 0.6970375,
+    "Rivendel ESTE_DE Comarca": 0.8482125,
+    "Bosque Negro OESTE_DE Rivendel": 0.5988375,
+    "Comarca CERCA_DE Bree": 0.607325
   },
   "barrido_epsilon": [
     {
       "epsilon": 0.0,
-      "ecsr": 0.72155,
-      "nitidez": 0.0126953125,
-      "ece": 0.6940476190476191
+      "ecsr": 0.8260144927536234,
+      "nitidez": 0.136474609375,
+      "ece": 0.25833333333333336
     },
     {
       "epsilon": 0.01,
-      "ecsr": 0.67915,
-      "nitidez": 0.040120442708333336,
-      "ece": 0.45595238095238094
+      "ecsr": 0.7964492753623188,
+      "nitidez": 0.18562825520833334,
+      "ece": 0.25833333333333336
     },
     {
       "epsilon": 0.02,
-      "ecsr": 0.6540666666666666,
-      "nitidez": 0.10196940104166667,
-      "ece": 0.3130952380952381
+      "ecsr": 0.7770289855072463,
+      "nitidez": 0.18359375,
+      "ece": 0.25833333333333336
     },
     {
       "epsilon": 0.05,
-      "ecsr": 0.5659083333333333,
-      "nitidez": 0.2021484375,
-      "ece": 0.2654761904761905
+      "ecsr": 0.7231449275362319,
+      "nitidez": 0.3001302083333333,
+      "ece": 0.25833333333333336
     },
     {
       "epsilon": 0.1,
-      "ecsr": 0.47211666666666663,
-      "nitidez": 0.333251953125,
-      "ece": 0.12261904761904763
+      "ecsr": 0.6337173913043478,
+      "nitidez": 0.3356119791666667,
+      "ece": 0.25833333333333336
     },
     {
       "epsilon": 0.2,
-      "ecsr": 0.33098333333333335,
-      "nitidez": 0.5302734375,
-      "ece": 0.07500000000000002
+      "ecsr": 0.45740579710144935,
+      "nitidez": 0.5659993489583334,
+      "ece": 0.22499999999999998
     }
   ],
-  "escala_alineamiento": 0.8702849583584442
+  "escala_alineamiento": 1.487358016088573
 }

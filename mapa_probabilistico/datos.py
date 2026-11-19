@@ -86,6 +86,46 @@ def cargar_extraccion(ruta):
     return d["lugares"], d["relaciones"]
 
 
+#: Pares de relaciones direccionales que afirman lo mismo al reves. Una
+#: extraccion puede devolver las dos formas de una misma afirmacion del
+#: texto, y entonces "A al este de B" y "B al oeste de A" entran como dos
+#: restricciones distintas.
+OPUESTO = {
+    "NORTE_DE": "SUR_DE", "SUR_DE": "NORTE_DE",
+    "ESTE_DE": "OESTE_DE", "OESTE_DE": "ESTE_DE",
+    "CERCA_DE": "CERCA_DE", "CONECTA": "CONECTA",
+}
+
+
+def colapsar_reciprocas(relaciones):
+    """Deja una sola copia de cada afirmacion, y devuelve (unicas, pares).
+
+    POR QUE: el modelo multiplica un factor por relacion, asi que una
+    afirmacion duplicada entra al producto dos veces y la posterior sale mas
+    angosta de lo que la evidencia permite. Medido sobre el subgrafo de doce
+    entidades, el unico par reciproco presente (Comarca OESTE_DE Bree y Bree
+    ESTE_DE Comarca) hacia bajar el area creible media de 0,322 a 0,257: un
+    25 % de nitidez que no venia del texto sino de contar dos veces la misma
+    frase. Tambien inflaba el denominador del CSR, 24 en vez de 23.
+
+    El trabajo base no hace este colapso: sus restricciones recorren la lista
+    tal cual. Se aplica aqui a la ENTRADA, antes de repartirla, de modo que
+    los tres candidatos que se comparan en el paso 4 (solver base, MAP del
+    modelo y grafo oficial) se evaluan sobre la misma lista y la comparacion
+    sigue siendo pareja.
+    """
+    vistas, unicas, pares = {}, [], []
+    for r in relaciones:
+        clave = (r["origen"], r["tipo"], r["destino"])
+        inversa = (r["destino"], OPUESTO.get(r["tipo"], r["tipo"]), r["origen"])
+        if inversa in vistas:
+            pares.append((vistas[inversa], clave))
+            continue
+        vistas[clave] = clave
+        unicas.append(r)
+    return unicas, pares
+
+
 def seleccionar_subgrafo(lugares, relaciones, nombres=None):
     """Devuelve (nombres, relaciones inducidas) para el subgrafo pedido."""
     if nombres is None:
@@ -97,6 +137,7 @@ def seleccionar_subgrafo(lugares, relaciones, nombres=None):
     conjunto = set(reales)
     inducidas = [r for r in relaciones
                  if r["origen"] in conjunto and r["destino"] in conjunto]
+    inducidas, _ = colapsar_reciprocas(inducidas)
     return reales, inducidas
 
 
@@ -126,3 +167,171 @@ def _json_default(o):
     if isinstance(o, np.ndarray):
         return o.tolist()
     raise TypeError(type(o))
+
+
+# ---------------------------------------------------------------------------
+# Configuracion
+# ---------------------------------------------------------------------------
+
+def cargar_config(raiz=None):
+    """Lee config.json. Las claves que empiezan con guion bajo son ayuda."""
+    from pathlib import Path as _P
+    raiz = _P(raiz) if raiz else _P(__file__).resolve().parents[1]
+    with open(raiz / "config.json", encoding="utf-8") as f:
+        cfg = json.load(f)
+    return _sin_ayuda(cfg)
+
+
+def _sin_ayuda(o):
+    if isinstance(o, dict):
+        return {k: _sin_ayuda(v) for k, v in o.items() if not k.startswith("_")}
+    if isinstance(o, list):
+        return [_sin_ayuda(v) for v in o]
+    return o
+
+
+def cargar_referencia(ruta, y_hacia_el_sur=True, alias=None):
+    """Carga un grafo oficial y lo normaliza al cuadrado unitario.
+
+    Los grafos oficiales del trabajo base vienen en pixeles sobre un lienzo
+    con `width` y `height`, y con y creciente hacia el sur. Aqui se pasan a
+    [0,1] y, si corresponde, se invierte el eje y para dejarlo creciente al
+    norte, que es la convencion del modelo.
+    """
+    with open(ruta, encoding="utf-8") as f:
+        g = json.load(f)
+    coords = g.get("coords", g)
+    W = float(g.get("width") or 1.0)
+    H = float(g.get("height") or W)
+    alias = alias or {}
+    salida = {}
+    for nombre, p in coords.items():
+        x = float(p["x"]) / W
+        y = float(p["y"]) / H
+        if y_hacia_el_sur:
+            y = 1.0 - y
+        salida[alias.get(nombre, nombre)] = (x, y)
+    return salida
+
+
+def seleccionar_subgrafo_auto(lugares, relaciones, verdad, n_lugares=12):
+    """Elige un subgrafo conexo sin intervencion manual.
+
+    Se construye por crecimiento desde una semilla, en vez de tomar los n
+    mejores y despues quedarse con lo que quede conexo. La version anterior
+    hacia eso ultimo y gastaba cupos en lugares con posicion oficial pero
+    una sola relacion, que terminaban descartados por aislados: pedir doce
+    lugares devolvia ocho.
+
+    Criterio de crecimiento, en este orden:
+      1. preferir lugares con posicion conocida en el grafo oficial, que son
+         los unicos con los que se puede medir calibracion;
+      2. entre iguales, preferir los de mayor grado dentro del conjunto ya
+         elegido, que es lo que mantiene el subgrafo bien conectado;
+      3. desempatar por grado total y por nombre, para que sea determinista.
+
+    El resultado es conexo por construccion y tiene exactamente n_lugares,
+    salvo que el grafo entero sea mas chico.
+    """
+    from collections import Counter
+
+    grado = Counter()
+    ady = {}
+    for r in relaciones:
+        a, b = r["origen"], r["destino"]
+        if a == b:
+            continue
+        grado[a] += 1
+        grado[b] += 1
+        ady.setdefault(a, set()).add(b)
+        ady.setdefault(b, set()).add(a)
+
+    disponibles = [l for l in lugares if grado[l] > 0]
+    if not disponibles:
+        return [], []
+
+    # Semilla: el lugar mejor conectado, prefiriendo los que tienen verdad.
+    semilla = min(disponibles,
+                  key=lambda l: (0 if l in verdad else 1, -grado[l], l))
+    elegidos = [semilla]
+    frontera = set(ady.get(semilla, ()))
+
+    while len(elegidos) < n_lugares and frontera:
+        dentro = set(elegidos)
+        mejor = min(
+            frontera,
+            key=lambda l: (0 if l in verdad else 1,
+                           -len(ady.get(l, set()) & dentro),
+                           -grado[l], l))
+        elegidos.append(mejor)
+        frontera.discard(mejor)
+        frontera |= (ady.get(mejor, set()) - set(elegidos))
+
+    conjunto = set(elegidos)
+    inducidas = [r for r in relaciones
+                 if r["origen"] in conjunto and r["destino"] in conjunto]
+    inducidas, _ = colapsar_reciprocas(inducidas)
+    return elegidos, inducidas
+
+
+def cargar_solucion_base(ruta, y_hacia_el_sur=True):
+    """Carga las coordenadas que produjo el solver del trabajo base.
+
+    `solution.json` del trabajo base trae `coords` en pixeles sobre un
+    lienzo `width` x `height`, con y creciente hacia el sur. Se normaliza al
+    cuadrado unitario y se invierte y, igual que el grafo oficial.
+
+    Esto importa para que la comparacion sea pareja: las coordenadas del
+    sistema base tienen que venir de una corrida sobre LA MISMA extraccion
+    que usa el modelo. Compararlas contra las de otra extraccion favorece
+    artificialmente al modelo, porque su solver nunca vio esas relaciones.
+    """
+    with open(ruta, encoding="utf-8") as f:
+        g = json.load(f)
+    coords = g.get("coords", {})
+    W = float(g.get("width") or 1.0)
+    H = float(g.get("height") or W)
+    salida = {}
+    for nombre, p in coords.items():
+        x = float(p["x"]) / W
+        y = float(p["y"]) / H
+        if y_hacia_el_sur:
+            y = 1.0 - y
+        salida[nombre] = (x, y)
+    # `rel_eval` son las relaciones que el solver del trabajo base
+    # realmente evaluo. Es la huella exacta de la extraccion que vio, y
+    # permite decidir si la comparacion es pareja sin depender de fechas
+    # de archivo, que se alteran con solo copiar un fichero.
+    huella = {(r.get("origen"), r.get("tipo"), r.get("destino"))
+              for r in (g.get("rel_eval") or [])}
+    return salida, {"CSR": g.get("CSR"),
+                    "total_constraints": g.get("total_constraints"),
+                    "solver_mode": g.get("solver_mode"),
+                    "relaciones_evaluadas": sorted(huella)}
+
+
+def guardar_figura(fig, ruta, **kw):
+    """Guarda una figura aunque el archivo este abierto en un visor.
+
+    En Windows, tener el PNG abierto en el visor de imagenes bloquea el
+    archivo y matplotlib falla con OSError 22. Como el pipeline abre las
+    figuras al terminar, la corrida siguiente chocaba con su propia salida.
+
+    Si el destino esta bloqueado se guarda junto a el con una marca de
+    tiempo y se avisa, en vez de abortar la corrida entera por un visor
+    abierto.
+    """
+    from pathlib import Path as _P
+    import time as _t
+    ruta = _P(ruta)
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        fig.savefig(ruta, **kw)
+        return ruta
+    except OSError as e:
+        alt = ruta.with_name(f"{ruta.stem}_{_t.strftime('%H%M%S')}{ruta.suffix}")
+        fig.savefig(alt, **kw)
+        print(f"  AVISO: no se pudo escribir {ruta.name} ({e.strerror}).")
+        print(f"  Probablemente esta abierto en el visor de imagenes.")
+        print(f"  Se guardo como {alt.name}. Cierra el visor y vuelve a correr.")
+        return alt

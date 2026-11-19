@@ -44,11 +44,26 @@ def ecsr(modelo, muestras):
     if modelo.n_relaciones == 0:
         return float("nan"), float("nan"), {}
 
+    # Se usa el predicado DEL MODELO, no el del modulo. Antes se llamaba a
+    # satisface_dura con sus parametros por omision, de modo que el ECSR
+    # ignoraba el d0 configurado y el tipado geometrico: daba el mismo valor
+    # con d0 = 0,02 que con d0 = 0,50.
     ok = np.zeros((n_m, modelo.n_relaciones), dtype=bool)
-    for j, r in enumerate(modelo.relaciones):
-        a = muestras[:, modelo.indice[r["origen"]], :]
-        b = muestras[:, modelo.indice[r["destino"]], :]
-        ok[:, j] = satisface_dura(a, b, r["tipo"])
+    if not getattr(modelo, "tipado_activo", False):
+        # Sin tipado toda entidad es un punto y el predicado se puede
+        # vectorizar sobre todas las muestras a la vez. Se le pasan los
+        # umbrales DEL MODELO, que es justo lo que antes se omitia.
+        for j, r in enumerate(modelo.relaciones):
+            a = muestras[:, modelo.indice[r["origen"]], :]
+            b = muestras[:, modelo.indice[r["destino"]], :]
+            ok[:, j] = satisface_dura(a, b, r["tipo"],
+                                      d0_cerca=modelo.d0_cerca,
+                                      d0_conecta=modelo.d0_conecta)
+    else:
+        # Con tipado hay que evaluar forma a forma, muestra a muestra.
+        for k in range(n_m):
+            for j in range(modelo.n_relaciones):
+                ok[k, j] = modelo.satisface(muestras[k], j)
 
     por_muestra = ok.mean(axis=1)
     por_relacion = {
@@ -84,9 +99,20 @@ def region_creible(puntos, nivel=0.80, celdas=60, ventana=VENTANA):
     H, _, _ = np.histogram2d(puntos[:, 0], puntos[:, 1], bins=[bordes, bordes])
     if H.sum() == 0:
         return float("nan"), H.astype(bool), bordes
-    H = H / H.sum()
+    # Se normaliza por el TOTAL de muestras, no por las que cayeron dentro.
+    # Si una parte de la nube se sale de la ventana, esa masa sigue contando
+    # en el denominador y la region al nivel pedido crece para compensar.
+    # Normalizar por lo de adentro subestimaba el area justo en las
+    # entidades mas inciertas, que son las que mas masa pierden.
+    H = H / float(len(puntos))
     plano = np.sort(H.ravel())[::-1]
     acumulado = np.cumsum(plano)
+    if acumulado[-1] < nivel:
+        # Ni toda la ventana alcanza el nivel pedido: la nube se escapa
+        # demasiado. Se devuelve el area completa de la ventana como cota
+        # inferior, en vez de una cifra enganosamente pequena.
+        return (float((ventana[1] - ventana[0]) ** 2),
+                np.ones_like(H, dtype=bool), bordes)
     corte_idx = int(np.searchsorted(acumulado, nivel))
     umbral = plano[min(corte_idx, len(plano) - 1)]
     mascara = H >= umbral
@@ -197,11 +223,51 @@ def alinear_a_referencia(muestras, lugares, verdad):
     """
     M = centrar(muestras)
     comunes = [n for n in lugares if n in verdad]
+    if len(comunes) < 2:
+        # Sin verdad de referencia no hay a que alinearse. Se deja la nube
+        # centrada y escalada a una extension comparable, que es suficiente
+        # para medir nitidez y para dibujar.
+        esc = 0.5 / max(float(np.abs(M).max()), 1e-9)
+        return esc * M + 0.5, [], (esc, np.array([0.5, 0.5]))
     idx = [lugares.index(n) for n in comunes]
     medias = M.mean(axis=0)[idx]
     objetivo = np.array([verdad[n] for n in comunes], dtype=float)
     escala, t = ajustar_semejanza(medias, objetivo)
     return escala * M + t, comunes, (escala, t)
+
+
+def radio_giro(A):
+    """Raiz del segundo momento respecto del centroide. Mide la extension."""
+    A = np.asarray(A, dtype=float)
+    return float(np.sqrt(((A - A.mean(axis=0)) ** 2).sum(axis=1).mean()))
+
+
+def normalizar_a_escala_comun(posiciones, objetivo):
+    """Lleva un candidato al marco del objetivo con una escala NO ajustable.
+
+    POR QUE EXISTE ESTA FUNCION, y no se usa `ajustar_semejanza` para esto:
+    el predicado duro compara distancias contra umbrales absolutos
+    (d0_cerca, d0_conecta). Si cada candidato recibe la escala que mejor le
+    ajusta por minimos cuadrados, la escala se vuelve un grado de libertad
+    que el predicado premia. Medido: en la comparacion cabeza a cabeza el
+    ajuste por minimos cuadrados daba escala 0,125 al sistema base y 1,547
+    al modelo. Encoger ocho veces un mapa hace que todo quede "cerca de"
+    todo, asi que el sistema base ganaba la comparacion por haber sido
+    comprimido, no por ser mejor.
+
+    Aqui la escala la fija una regla igual para todos: se iguala el radio de
+    giro al del objetivo. El objetivo se transforma en si mismo, de modo que
+    el grafo oficial sigue siendo el techo interpretable de la tabla.
+
+    `ajustar_semejanza` se sigue usando para la similitud posicional, que es
+    una distancia y no un predicado con umbral: ahi el ajuste optimo es lo
+    correcto, porque no hay nada que un cambio de escala pueda regalar.
+    """
+    A = np.asarray(posiciones, dtype=float)
+    B = np.asarray(objetivo, dtype=float)
+    ra, rb = radio_giro(A), radio_giro(B)
+    escala = (rb / ra) if ra > 1e-12 else 1.0
+    return escala * (A - A.mean(axis=0)) + B.mean(axis=0), escala
 
 
 def similitud_posicional(estimado, verdad_nombres, verdad, lugares):

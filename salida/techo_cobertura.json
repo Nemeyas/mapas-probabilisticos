@@ -1,0 +1,106 @@
+{
+  "fuente_texto": "/tmp/claude-0/txt/fellowship.txt",
+  "n_oficiales": 33,
+  "n_mencionados": 15,
+  "n_extraidos_de_los_oficiales": 9,
+  "cobertura_reportada": 0.2727272727272727,
+  "techo_estructural": 0.45454545454545453,
+  "recall_sobre_lo_mencionable": 0.6,
+  "mencionados": [
+    {
+      "lugar": "La Comarca",
+      "menciones": 149,
+      "extraido": true
+    },
+    {
+      "lugar": "Bree",
+      "menciones": 94,
+      "extraido": true
+    },
+    {
+      "lugar": "Valle",
+      "menciones": 49,
+      "extraido": true
+    },
+    {
+      "lugar": "Rivendel",
+      "menciones": 36,
+      "extraido": true
+    },
+    {
+      "lugar": "Hobbiton",
+      "menciones": 28,
+      "extraido": true
+    },
+    {
+      "lugar": "Amon Sul",
+      "menciones": 18,
+      "extraido": false
+    },
+    {
+      "lugar": "Puerta Oeste de Moria",
+      "menciones": 13,
+      "extraido": false
+    },
+    {
+      "lugar": "Puertos Grises",
+      "menciones": 4,
+      "extraido": true
+    },
+    {
+      "lugar": "Fornost",
+      "menciones": 3,
+      "extraido": true
+    },
+    {
+      "lugar": "Monte del Destino",
+      "menciones": 3,
+      "extraido": false
+    },
+    {
+      "lugar": "Carn Dum",
+      "menciones": 2,
+      "extraido": false
+    },
+    {
+      "lugar": "Minas Tirith",
+      "menciones": 2,
+      "extraido": false
+    },
+    {
+      "lugar": "Umbar",
+      "menciones": 2,
+      "extraido": false
+    },
+    {
+      "lugar": "Erebor",
+      "menciones": 1,
+      "extraido": true
+    },
+    {
+      "lugar": "Tharbad",
+      "menciones": 1,
+      "extraido": true
+    }
+  ],
+  "ausentes": [
+    "Monte Gundabad",
+    "Salas de Thranduil",
+    "Esgaroth",
+    "Casa de Beorn",
+    "Dol Guldur",
+    "Caras Galadhon",
+    "Isengard",
+    "Abismo de Helm",
+    "Edoras",
+    "Sagrario",
+    "Puerta Negra",
+    "Cair Andros",
+    "Osgiliath",
+    "Minas Morgul",
+    "Cirith Ungol",
+    "Barad-dur",
+    "Pelargir",
+    "Dol Amroth"
+  ]
+}

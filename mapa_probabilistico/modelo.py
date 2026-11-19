@@ -23,6 +23,9 @@ from __future__ import annotations
 
 import numpy as np
 
+from .geometria import (CURVA, PUNTO, RADIO_REGION, REGION, distancia_formas,
+                        representante)
+
 # ---------------------------------------------------------------------------
 # Parametros del modelo
 # ---------------------------------------------------------------------------
@@ -148,11 +151,26 @@ def compatibilidad_relacion(pos_origen, pos_destino, tipo, epsilon=EPSILON, **kw
 
 def satisface_dura(pos_origen, pos_destino, tipo, d0_cerca=D0_CERCA,
                    d0_conecta=D0_CONECTA):
-    """Predicado duro, el mismo criterio que usa el sistema base.
+    """Predicado duro DECLARADO, usado como vara comun para medir.
 
-    Se usa solo para medir: permite calcular un CSR comparable cifra a cifra
-    con el del trabajo base, sobre configuraciones que el modelo blando
-    produjo. El modelo no optimiza esto.
+    ATENCION: este criterio NO es el del trabajo base. El suyo, definido en
+    `pipeline/2_generar_inecuaciones.py`, es distinto en los tres tipos:
+
+      CERCA_DE   ellos: circulo de radio 0,5 del lienzo si no hay distancia
+                 explicita.          aqui: circulo de radio d0_cerca = 0,08.
+      CONECTA    ellos: caja de Chebyshev de medio lado 0,4.
+                 aqui: circulo de radio d0_conecta = 0,20.
+      Direccion  ellos: semiplano con margen 0,036 MAS una caja de 0,333 de
+                 lado, en avance y en deriva lateral.
+                 aqui: cono de 45 grados, sin cota de alcance.
+
+    Por eso el CSR que calcula este modulo no es el CSR que publica el
+    trabajo base, y las dos cifras no deben presentarse como la misma cosa.
+    Lo que si vale es comparar candidatos ENTRE SI bajo este criterio, que
+    es como se usa: ambos sistemas se evaluan con el mismo predicado, el
+    mismo marco y el mismo subconjunto de relaciones.
+
+    El modelo blando no optimiza este predicado; solo se usa para medir.
     """
     a = np.asarray(pos_origen, dtype=float)
     b = np.asarray(pos_destino, dtype=float)
@@ -190,9 +208,43 @@ class ModeloMapa:
     """
 
     def __init__(self, lugares, relaciones, pesos=None, epsilon=EPSILON,
-                 ancla=None, pos_ancla=(0.5, 0.5)):
+                 ancla=None, pos_ancla=(0.5, 0.5), d0_cerca=D0_CERCA,
+                 d0_conecta=D0_CONECTA, suavidad=SUAVIDAD, dureza_cono=DUREZA_CONO,
+                 tipos=None, radios=None):
+        # Los parametros geometricos viven en la instancia, no en el modulo,
+        # para que se puedan cambiar desde config.json sin tocar el codigo.
+        self.d0_cerca = float(d0_cerca)
+        self.d0_conecta = float(d0_conecta)
+        self.suavidad = float(suavidad)
+        self.dureza_cono = float(dureza_cono)
         self.lugares = list(lugares)
-        self.indice = {nombre: i for i, nombre in enumerate(self.lugares)}
+
+        # --- tipado geometrico ---------------------------------------------
+        #
+        # Una curva ocupa DOS filas de X, sus dos extremos; un punto y una
+        # region ocupan una. El muestreo sigue operando sobre una matriz de
+        # posiciones, sin saber nada de formas: lo unico que cambia es que
+        # algunas entidades tienen dos posiciones en vez de una. Esa decision
+        # evita introducir parametros de otra naturaleza, como longitudes u
+        # orientaciones, que habria que muestrear con propuestas distintas.
+        self.tipos = {n: (tipos or {}).get(n, PUNTO) for n in self.lugares}
+        self.radios = {n: (radios or {}).get(n, RADIO_REGION) for n in self.lugares}
+        self.ranuras = {}
+        k = 0
+        for n in self.lugares:
+            if self.tipos[n] == CURVA:
+                self.ranuras[n] = (k, k + 1)
+                k += 2
+            else:
+                self.ranuras[n] = (k, k)
+                k += 1
+        self.n_ranuras = k
+        self.tipado_activo = any(t != PUNTO for t in self.tipos.values())
+
+        # `indice` apunta a la primera ranura de cada entidad. Se conserva
+        # con ese nombre porque el resto del codigo lo usa asi, y para una
+        # entidad puntual, que es el caso por defecto, coincide con antes.
+        self.indice = {n: self.ranuras[n][0] for n in self.lugares}
         self.relaciones = [r for r in relaciones
                            if r["origen"] in self.indice and r["destino"] in self.indice]
         self.epsilon = epsilon
@@ -213,10 +265,13 @@ class ModeloMapa:
         self.pos_ancla = np.array(pos_ancla, dtype=float)
 
         # Para el muestreo por bloques: que relaciones toca cada lugar.
-        self.relaciones_de = {i: [] for i in range(len(self.lugares))}
+        self.relaciones_de = {i: [] for i in range(self.n_ranuras)}
         for j, r in enumerate(self.relaciones):
-            self.relaciones_de[self.indice[r["origen"]]].append(j)
-            self.relaciones_de[self.indice[r["destino"]]].append(j)
+            for nombre in (r["origen"], r["destino"]):
+                a, b = self.ranuras[nombre]
+                self.relaciones_de[a].append(j)
+                if b != a:
+                    self.relaciones_de[b].append(j)
 
         self._preparar_rapido()
 
@@ -233,70 +288,6 @@ class ModeloMapa:
     _COD = {"CERCA_DE": 0, "CONECTA": 1,
             "NORTE_DE": 2, "SUR_DE": 3, "ESTE_DE": 4, "OESTE_DE": 5}
 
-    def _preparar_rapido(self):
-        self._rapido = []
-        for j, r in enumerate(self.relaciones):
-            cod = self._COD[r["tipo"]]
-            d0 = D0_CERCA if cod == 0 else D0_CONECTA
-            self._rapido.append((
-                self.indice[r["origen"]], self.indice[r["destino"]],
-                cod, d0, float(self.pesos[j]),
-            ))
-        self._rapido_de = {i: [self._rapido[j] for j in js]
-                           for i, js in self.relaciones_de.items()}
-
-    def log_local(self, X, i):
-        """Log densidad de las relaciones que tocan al lugar i. Aritmetica escalar."""
-        from math import exp, log, sqrt
-        eps, s, k = self.epsilon, SUAVIDAD, DUREZA_CONO
-        total = 0.0
-        for io, id_, cod, d0, w in self._rapido_de[i]:
-            dx = X[io, 0] - X[id_, 0]
-            dy = X[io, 1] - X[id_, 1]
-            if cod < 2:
-                z = (sqrt(dx * dx + dy * dy) - d0) / s
-                if z >= 0:
-                    e = exp(-z)
-                    mu = e / (1.0 + e)
-                else:
-                    mu = 1.0 / (1.0 + exp(z))
-            else:
-                n = sqrt(dx * dx + dy * dy)
-                if n <= 1e-12:
-                    mu = 0.0
-                else:
-                    c = (dy / n) if cod == 2 else (-dy / n) if cod == 3 else \
-                        (dx / n) if cod == 4 else (-dx / n)
-                    mu = c ** k if c > 0.0 else 0.0
-            total += w * log(eps + (1.0 - eps) * mu)
-        return total
-
-    def log_total_rapido(self, X):
-        """Log densidad completa por el camino rapido."""
-        from math import exp, log, sqrt
-        eps, s, k = self.epsilon, SUAVIDAD, DUREZA_CONO
-        total = 0.0
-        for io, id_, cod, d0, w in self._rapido:
-            dx = X[io, 0] - X[id_, 0]
-            dy = X[io, 1] - X[id_, 1]
-            if cod < 2:
-                z = (sqrt(dx * dx + dy * dy) - d0) / s
-                if z >= 0:
-                    e = exp(-z)
-                    mu = e / (1.0 + e)
-                else:
-                    mu = 1.0 / (1.0 + exp(z))
-            else:
-                n = sqrt(dx * dx + dy * dy)
-                if n <= 1e-12:
-                    mu = 0.0
-                else:
-                    c = (dy / n) if cod == 2 else (-dy / n) if cod == 3 else \
-                        (dx / n) if cod == 4 else (-dx / n)
-                    mu = c ** k if c > 0.0 else 0.0
-            total += w * log(eps + (1.0 - eps) * mu)
-        return total
-
     @staticmethod
     def _clave(r):
         return (r["origen"], r["tipo"], r["destino"])
@@ -309,6 +300,117 @@ class ModeloMapa:
     def n_relaciones(self):
         return len(self.relaciones)
 
+    def _preparar_rapido(self):
+        self._rapido = []
+        for j, r in enumerate(self.relaciones):
+            cod = self._COD[r["tipo"]]
+            d0 = self.d0_cerca if cod == 0 else self.d0_conecta
+            o, d = r["origen"], r["destino"]
+            self._rapido.append((
+                self.ranuras[o], self.ranuras[d], cod, d0, float(self.pesos[j]),
+                self.tipos[o], self.tipos[d],
+                self.radios[o] if self.tipos[o] == REGION else 0.0,
+                self.radios[d] if self.tipos[d] == REGION else 0.0,
+            ))
+        self._rapido_de = {i: [self._rapido[j] for j in js]
+                           for i, js in self.relaciones_de.items()}
+
+    def _forma(self, X, ranuras, tipo, radio):
+        a, b = ranuras
+        return (tipo, X[a, 0], X[a, 1], X[b, 0], X[b, 1], radio)
+
+    def representantes(self, X):
+        """Un punto por entidad: la posicion, el centro o el medio de la curva.
+
+        Es la vista que usan las figuras y las metricas, que razonan en
+        terminos de una ubicacion por lugar.
+        """
+        X = np.asarray(X, dtype=float)
+        salida = np.empty((len(self.lugares), 2))
+        for i, n in enumerate(self.lugares):
+            salida[i] = representante(
+                self._forma(X, self.ranuras[n], self.tipos[n], self.radios[n]))
+        return salida
+
+    def representantes_lote(self, M):
+        """Representantes de un lote de configuraciones, de forma (m, r, 2).
+
+        Devuelve (m, n_lugares, 2). Es la vista que consumen las figuras y
+        las metricas, que razonan con una ubicacion por entidad.
+        """
+        M = np.asarray(M, dtype=float)
+        salida = np.empty((M.shape[0], len(self.lugares), 2))
+        for i, n in enumerate(self.lugares):
+            a, b = self.ranuras[n]
+            salida[:, i, :] = M[:, a, :] if a == b else 0.5 * (M[:, a, :] + M[:, b, :])
+        return salida
+
+    def _log_mu_tupla(self, X, t):
+        """Log de la compatibilidad robustecida de una relacion compilada.
+
+        Camino general, con formas. Se usa cuando hay tipado geometrico
+        activo. Cuando todas las entidades son puntos se usa en cambio el
+        camino escalar de `_log_mu_punto`, que evita construir las tuplas de
+        forma y es sensiblemente mas rapido.
+        """
+        from math import exp, log
+        ro, rd, cod, d0, w, to, td, rao, rad = t
+        fa = self._forma(X, ro, to, rao)
+        fb = self._forma(X, rd, td, rad)
+        if cod < 2:
+            z = (distancia_formas(fa, fb) - d0) / self.suavidad
+            if z >= 0:
+                e = exp(-z)
+                mu = e / (1.0 + e)
+            else:
+                mu = 1.0 / (1.0 + exp(z))
+        else:
+            ox, oy = representante(fa)
+            dx_, dy_ = representante(fb)
+            dx, dy = ox - dx_, oy - dy_
+            n = (dx * dx + dy * dy) ** 0.5
+            if n <= 1e-12:
+                mu = 0.0
+            else:
+                c = (dy / n) if cod == 2 else (-dy / n) if cod == 3 else \
+                    (dx / n) if cod == 4 else (-dx / n)
+                mu = c ** self.dureza_cono if c > 0.0 else 0.0
+        return w * log(self.epsilon + (1.0 - self.epsilon) * mu)
+
+    def _log_mu_punto(self, X, t):
+        """Camino escalar para el caso en que toda entidad es un punto."""
+        from math import exp, log, sqrt
+        ro, rd, cod, d0, w = t[0], t[1], t[2], t[3], t[4]
+        io_, id_ = ro[0], rd[0]
+        dx = X[io_, 0] - X[id_, 0]
+        dy = X[io_, 1] - X[id_, 1]
+        if cod < 2:
+            z = (sqrt(dx * dx + dy * dy) - d0) / self.suavidad
+            if z >= 0:
+                e = exp(-z)
+                mu = e / (1.0 + e)
+            else:
+                mu = 1.0 / (1.0 + exp(z))
+        else:
+            n = sqrt(dx * dx + dy * dy)
+            if n <= 1e-12:
+                mu = 0.0
+            else:
+                c = (dy / n) if cod == 2 else (-dy / n) if cod == 3 else \
+                    (dx / n) if cod == 4 else (-dx / n)
+                mu = c ** self.dureza_cono if c > 0.0 else 0.0
+        return w * log(self.epsilon + (1.0 - self.epsilon) * mu)
+
+    def log_local(self, X, i):
+        """Log densidad de las relaciones que tocan a la ranura i."""
+        f = self._log_mu_tupla if self.tipado_activo else self._log_mu_punto
+        return sum(f(X, t) for t in self._rapido_de[i])
+
+    def log_total_rapido(self, X):
+        """Log densidad completa."""
+        f = self._log_mu_tupla if self.tipado_activo else self._log_mu_punto
+        return sum(f(X, t) for t in self._rapido)
+
     def log_densidad(self, X, solo=None):
         """Log densidad no normalizada de la configuracion X, de forma (n, 2).
 
@@ -318,14 +420,7 @@ class ModeloMapa:
         """
         X = np.asarray(X, dtype=float)
         indices = range(self.n_relaciones) if solo is None else solo
-        total = 0.0
-        for j in indices:
-            r = self.relaciones[j]
-            mu = compatibilidad_relacion(
-                X[self.indice[r["origen"]]], X[self.indice[r["destino"]]],
-                r["tipo"], epsilon=self.epsilon)
-            total += self.pesos[j] * np.log(mu)
-        return total
+        return float(sum(self._log_mu_tupla(X, self._rapido[j]) for j in indices))
 
     def fraccion_satisfecha(self, X):
         """Fraccion de relaciones que el predicado duro da por satisfechas.
@@ -336,18 +431,25 @@ class ModeloMapa:
         X = np.asarray(X, dtype=float)
         if self.n_relaciones == 0:
             return float("nan")
-        ok = 0
-        for r in self.relaciones:
-            ok += bool(satisface_dura(X[self.indice[r["origen"]]],
-                                      X[self.indice[r["destino"]]], r["tipo"])[0])
-        return ok / self.n_relaciones
+        return sum(self.satisface(X, j) for j in range(self.n_relaciones)) \
+            / self.n_relaciones
+
+    def satisface(self, X, j):
+        """Predicado duro de la relacion j, con la geometria de cada entidad."""
+        ro, rd, cod, d0, _, to, td, rao, rad = self._rapido[j]
+        fa = self._forma(X, ro, to, rao)
+        fb = self._forma(X, rd, td, rad)
+        if cod < 2:
+            return distancia_formas(fa, fb) <= d0
+        ox, oy = representante(fa)
+        px, py = representante(fb)
+        dx, dy = ox - px, oy - py
+        proy = (dy, -dy, dx, -dx)[cod - 2]
+        perp = abs(dx) if cod in (2, 3) else abs(dy)
+        return proy > perp
 
     def detalle_satisfaccion(self, X):
         """Lista de (relacion, satisface) para una configuracion."""
         X = np.asarray(X, dtype=float)
-        salida = []
-        for r in self.relaciones:
-            ok = bool(satisface_dura(X[self.indice[r["origen"]]],
-                                     X[self.indice[r["destino"]]], r["tipo"])[0])
-            salida.append((r, ok))
-        return salida
+        return [(r, self.satisface(X, j))
+                for j, r in enumerate(self.relaciones)]

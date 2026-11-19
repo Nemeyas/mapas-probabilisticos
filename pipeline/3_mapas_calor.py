@@ -30,6 +30,7 @@ from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 
+from mapa_probabilistico.datos import guardar_figura  # noqa: E402
 from mapa_probabilistico.metricas import (  # noqa: E402
     VENTANA, alinear_a_referencia, region_creible)
 
@@ -75,17 +76,28 @@ def main():
     M, comunes, (escala, _) = alinear_a_referencia(muestras, lugares, verdad)
     V = {n: tuple(verdad[n]) for n in comunes}
     B = {n: tuple(base[n]) for n in comunes if n in base}
+    if not comunes:
+        print("Sin grafo de referencia: los paneles no llevan marcas de"
+              " posicion oficial ni del sistema base.")
     areas_fn = lambda i: region_creible(M[:, i, :], nivel=0.80)[0]
 
     # --- figura 1: todos los lugares -------------------------------------
-    fig, ejes = plt.subplots(3, 4, figsize=(13.2, 10.4))
+    # La grilla se adapta al numero de lugares del subgrafo, que cambia con
+    # cada extraccion. Fijarla producia paneles vacios.
+    n = len(lugares)
+    cols = 4 if n > 6 else (3 if n > 4 else 2)
+    filas = -(-n // cols)
+    fig, ejes = plt.subplots(filas, cols, figsize=(3.3 * cols, 3.45 * filas))
+    ejes = np.atleast_1d(ejes).ravel()
     fig.patch.set_facecolor(PAPEL)
     areas = {}
-    for ax, nombre in zip(ejes.ravel(), lugares):
+    for ax, nombre in zip(ejes, lugares):
         i = lugares.index(nombre)
         areas[nombre] = areas_fn(i)
         panel(ax, M[:, i, :], f"{nombre}   ·   {areas[nombre]:.3f}",
               verdad=V.get(nombre), base=B.get(nombre))
+    for ax in ejes[n:]:
+        ax.axis("off")
     fig.suptitle("Dónde puede estar cada lugar, según el texto",
                  fontsize=17, color=TINTA, y=0.995)
     fig.text(0.5, 0.962,
@@ -93,12 +105,16 @@ def main():
              "área de la región creíble al 80 % · × posición oficial   + sistema base",
              ha="center", fontsize=10, color=TENUE)
     fig.tight_layout(rect=[0, 0.01, 1, 0.95])
-    fig.savefig(RAIZ / "salida" / "mapas_calor.png", dpi=170,
-                facecolor=PAPEL, bbox_inches="tight", pad_inches=0.25)
+    guardar_figura(fig, RAIZ / "salida" / "mapas_calor.png", dpi=170,
+                   facecolor=PAPEL, bbox_inches="tight", pad_inches=0.25)
     plt.close(fig)
 
     # --- figura 2: el contraste que define el aporte ----------------------
-    foco = [n for n in ("Valle", "Hobbiton") if n in lugares]
+    # Las dos entidades que mejor muestran el contraste: la mas determinada
+    # y la menos. Antes estaban escritas a mano, lo que rompia el paso con
+    # cualquier subgrafo que no las contuviera.
+    por_area = sorted(lugares, key=lambda n: areas[n])
+    foco = [por_area[0], por_area[-1]] if len(por_area) >= 2 else por_area
     fig, ejes = plt.subplots(1, len(foco), figsize=(5.6 * len(foco), 5.6))
     fig.patch.set_facecolor(PAPEL)
     ejes = np.atleast_1d(ejes)
@@ -113,8 +129,8 @@ def main():
              "distribución, y su ancho dice cuánto confiar.",
              ha="center", fontsize=10, color=TENUE)
     fig.tight_layout(rect=[0, 0.02, 1, 0.88])
-    fig.savefig(RAIZ / "salida" / "contraste.png", dpi=170,
-                facecolor=PAPEL, bbox_inches="tight", pad_inches=0.25)
+    guardar_figura(fig, RAIZ / "salida" / "contraste.png", dpi=170,
+                   facecolor=PAPEL, bbox_inches="tight", pad_inches=0.25)
     plt.close(fig)
 
     print(f"Escala del ajuste de semejanza: {escala:.4f}")

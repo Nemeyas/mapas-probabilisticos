@@ -1,4 +1,26 @@
+# --- Secretos. NUNCA deben llegar a un repositorio publico. ---
+.env
+.env.*
+!.env.example
+*.key
+*_secret*
+credenciales*
+
+# --- Entorno y temporales ---
 __pycache__/
 *.pyc
 .venv/
+
+# --- Salida regenerable ---
 salida/muestras.npz
+
+# Copia temporal que DEMO.bat crea solo para abrir la figura en el visor
+# de Windows. Es identica a mapas_calor.png y se regenera en cada corrida,
+# asi que subirla duplica un megabyte en cada commit.
+salida/_ver_*.png
+
+# --- Notas de trabajo, no documentacion ---
+# El registro formal de la auditoria es
+# "CORRECCIONES - registro de la auditoria.md", que si se publica.
+# Esta es la nota informal de la que salio, y se conserva solo en local.
+AUDITORIA - lo que estaba mal.md

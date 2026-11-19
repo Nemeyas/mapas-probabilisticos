@@ -1,0 +1,170 @@
+{
+  "_lee_esto_primero": [
+    "Este archivo es la unica cosa que hay que tocar para probar el modelo con",
+    "otra entrada. No hace falta editar codigo.",
+    "",
+    "La ENTRADA del sistema es siempre un JSON con dos listas: 'lugares' y",
+    "'relaciones'. De donde salga ese JSON le da igual al modelo. Puede venir",
+    "de la extraccion con LLM del trabajo base, de otra de sus diez ejecuciones",
+    "publicadas, o escrito a mano. Esa independencia es deliberada: es lo que",
+    "permite evaluar la etapa de resolucion sin que la extraccion intervenga."
+  ],
+  "entrada": {
+    "_ayuda": [
+      "ruta: el JSON de entrada con 'lugares' y 'relaciones'.",
+      "Para probar otra de las diez ejecuciones publicadas, cambia run_01 por",
+      "run_02 ... run_10. Para probar con un texto nuevo hace falta correr antes",
+      "la etapa de extraccion del trabajo base, que si necesita clave de API.",
+      "Ver 'Como probar con otro texto' en el README."
+    ],
+    "ruta": "../5 Sistema base/output/json/map_relations_j_r_r_tolkien_la_comunidad_del_anillo_i_todo.json"
+  },
+  "referencia": {
+    "_ayuda": [
+      "Grafo oficial contra el que se mide, y su convencion de ejes.",
+      "El repositorio del trabajo base trae cuatro: TierraMedia, ImperioFinal,",
+      "CronicasDeNarnia y ArchivoDeLasTormentas. Solo hay extraccion publicada",
+      "para TierraMedia.",
+      "y_hacia_el_sur: true si el grafo usa coordenadas de imagen, donde y crece",
+      "hacia abajo. Se invierte al cargarlo, porque el modelo usa y al norte."
+    ],
+    "ruta": "../5 Sistema base/output/json/TierraMedia_GrafoOficial.json",
+    "y_hacia_el_sur": true,
+    "alias": {
+      "La Comarca": "Comarca"
+    }
+  },
+  "subgrafo": {
+    "_ayuda": [
+      "modo 'lista'  : usa exactamente los lugares de 'lugares'.",
+      "modo 'auto'   : elige n_lugares automaticamente, priorizando los que",
+      "                tienen posicion en el grafo oficial y despues los de",
+      "                mayor grado, y se queda con la componente conexa mayor.",
+      "                Es el modo a usar con una extraccion nueva, donde no se",
+      "                sabe de antemano que lugares conviene tomar.",
+      "El tamano importa: n lugares son 2n dimensiones. Hasta unos 15 el",
+      "muestreo mezcla bien y la convergencia se puede verificar. Mas arriba",
+      "hay que subir el descarte y revisar Gelman-Rubin con cuidado."
+    ],
+    "modo": "auto",
+    "n_lugares": 12,
+    "lugares": [
+      "Comarca",
+      "Hobbiton",
+      "Bree",
+      "Rivendel",
+      "Valle",
+      "Erebor",
+      "Fornost",
+      "Norburgo",
+      "Bolsón Cerrado",
+      "Delagua",
+      "Quebradas",
+      "Tierras de Tuk"
+    ]
+  },
+  "modelo": {
+    "_ayuda": [
+      "d0_cerca   : distancia donde 'cerca de' vale 0,5, en unidades del",
+      "             cuadrado unitario. NO es un parametro libre: se ancla a la",
+      "             mediana de las distancias reales entre los pares que el",
+      "             grafo oficial permite verificar. Para TierraMedia esa",
+      "             mediana es 0,124, de ahi el 0,12. El valor anterior, 0,08,",
+      "             excluia dos de los tres pares 'cerca de' verificables.",
+      "d0_conecta : lo mismo para 'conecta con'. Mas grande, porque dos lugares",
+      "             unidos por un camino pueden estar lejos. La distancia real",
+      "             maxima entre pares conectados verificables es 0,197.",
+      "ADVERTENCIA: estos umbrales se anclan con 3 y 4 pares. Son una cota de",
+      "             cordura, no un ajuste, y por eso el paso 4 publica SIEMPRE",
+      "             el barrido de sensibilidad: moviendo d0 dentro de un rango",
+      "             defendible el CSR cabeza a cabeza cambia de ganador. Ese",
+      "             es un resultado sobre el CSR, no un parametro que tocar",
+      "             hasta que el resultado guste.",
+      "suavidad   : ancho de la transicion de la sigmoide. Con suavidad -> 0 se",
+      "             recupera la restriccion dura del sistema base.",
+      "dureza_cono: exponente del cono direccional. Mas alto = cono mas angosto.",
+      "epsilon    : termino de robustez. 0 lo desactiva, y esa es la condicion",
+      "             A1 del diseno experimental.",
+      "ancla      : lugar que se fija para quitar la invariancia a traslaciones.",
+      "             Conviene el de mayor grado. null elige el de mayor grado solo."
+    ],
+    "d0_cerca": 0.12,
+    "d0_conecta": 0.2,
+    "suavidad": 0.03,
+    "dureza_cono": 2.0,
+    "epsilon": 0.05,
+    "ancla": null
+  },
+  "muestreo": {
+    "_ayuda": [
+      "Presupuesto declarado. Se escribe tal cual en la salida.",
+      "Declararlo es parte del metodo: la verificacion del trabajo base mostro",
+      "que no declarar el presupuesto del solver hace que los resultados no se",
+      "puedan reproducir entre equipos."
+    ],
+    "semillas": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "n_muestras": 20000,
+    "descarte": 8000,
+    "salto_inicial": 0.06
+  },
+  "barrido_d0": [
+    [0.08, 0.2],
+    [0.12, 0.2],
+    [0.12, 0.13],
+    [0.15, 0.2],
+    [0.2, 0.25]
+  ],
+  "barrido_epsilon": [
+    0.0,
+    0.01,
+    0.02,
+    0.05,
+    0.1,
+    0.2
+  ],
+  "sistema_base": {
+    "_ayuda": [
+      "Coordenadas del solver del trabajo base, para la comparacion.",
+      "IMPORTANTE: tienen que venir de una corrida del solver sobre LA MISMA",
+      "extraccion que usa este modelo. Si se comparan contra una corrida sobre",
+      "otra extraccion, la comparacion favorece artificialmente al modelo,",
+      "porque su solver nunca vio esas relaciones.",
+      "Para generarlas: correr COMPARAR_BASE.bat, que ejecuta los pasos 2 a 5",
+      "del trabajo base sobre la extraccion mas reciente.",
+      "ruta_solucion: null usa las coordenadas publicadas de run_01, que solo",
+      "son comparables si la entrada tambien es run_01."
+    ],
+    "ruta_solucion": "../5 Sistema base/output/json/solution.json",
+    "y_hacia_el_sur": true
+  },
+  "tipado": {
+    "_ayuda": [
+      "Tipado geometrico de las entidades, seccion 5.3 del informe.",
+      "  punto  : una posicion.",
+      "  curva  : un segmento. 'Cerca del rio' se mide al punto mas cercano",
+      "           del segmento. Ocupa dos posiciones, sus extremos.",
+      "  region : un disco. 'Cerca de la Comarca' se mide al borde, y vale",
+      "           cero si esta dentro. El radio lo fija radio_region.",
+      "activo: false trata toda entidad como punto, que es la condicion del",
+      "  sistema base y la del prototipo evaluado en la seccion 7.8.",
+      "  Ponerlo en true activa la condicion P1 del diseno experimental.",
+      "Mientras la extraccion no devuelva el tipo, se asigna aqui a mano. Las",
+      "entidades que no figuren en 'tipos' se tratan como punto."
+    ],
+    "activo": false,
+    "radio_region": 0.06,
+    "tipos": {
+      "Comarca": "region",
+      "Eriador": "region",
+      "Bosque Negro": "region",
+      "Los Gamos": "region",
+      "Brandivino": "curva",
+      "Delagua": "curva"
+    }
+  }
+}

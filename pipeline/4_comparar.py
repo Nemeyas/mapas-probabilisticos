@@ -34,6 +34,26 @@ TINTA, TENUE, ROJO, VERDE, PAPEL = "#1F1915", "#6B6058", "#8C2F2F", "#17563F", "
 BARRIDO_EPSILON = [0.0, 0.01, 0.02, 0.05, 0.10, 0.20]
 
 
+def modelo_de_config(sub, cfg, **cambios):
+    """Construye el modelo SIEMPRE desde config.json.
+
+    Existe para que no se repita el error que tuvo este archivo: varios
+    sitios creaban ModeloMapa pasando solo epsilon y ancla, de modo que
+    d0_cerca, d0_conecta, suavidad y dureza_cono se quedaban en los valores
+    por omision del modulo. El barrido de epsilon devolvia entonces cifras
+    identicas aunque se cambiara d0 en la configuracion, porque nunca lo
+    leia. Cualquier parametro se puede sobreescribir con `cambios`.
+    """
+    m = dict(cfg["modelo"])
+    m.pop("_ayuda", None)
+    m["epsilon"] = max(m.get("epsilon", 0.05), 1e-12)
+    m["ancla"] = sub.get("ancla") or m.get("ancla")
+    m.update(cambios)
+    if "epsilon" in cambios:
+        m["epsilon"] = max(cambios["epsilon"], 1e-12)
+    return ModeloMapa(sub["lugares"], sub["relaciones"], pos_ancla=(0.5, 0.5), **m)
+
+
 def main():
     sub = json.loads((RAIZ / "datos" / "subgrafo.json").read_text(encoding="utf-8"))
     z = np.load(RAIZ / "salida" / "muestras.npz", allow_pickle=True)
@@ -41,14 +61,18 @@ def main():
     lugares = list(z["lugares"])
     verdad = sub["verdad_referencia"]
     base = sub["sistema_base"]
+    cfg = sub.get("config") or datos.cargar_config(RAIZ)
 
-    modelo = ModeloMapa(sub["lugares"], sub["relaciones"],
-                        epsilon=EPSILON, ancla="Comarca")
+    # Desde config.json, no desde las constantes del modulo: las muestras del
+    # paso 2 se generaron con los parametros de la configuracion, y evaluarlas
+    # con otros umbrales mide una densidad distinta de la que se muestreo.
+    modelo = modelo_de_config(sub, cfg)
 
     M, comunes, (escala, _) = metricas.alinear_a_referencia(muestras, lugares, verdad)
 
     print("=" * 66)
-    print("  Comparacion cabeza a cabeza sobre la extraccion de run_01")
+    print(f"  Comparacion cabeza a cabeza")
+    print(f"  Extraccion: {Path(sub.get('fuente', '?')).name}")
     print("=" * 66)
     print(f"  {modelo.n_lugares} lugares, {modelo.n_relaciones} relaciones, "
           f"{len(comunes)} con posicion oficial")
@@ -74,6 +98,39 @@ def main():
     print("  La comparacion pareja contra el sistema base es la del MAP.")
     print()
 
+    hay_ref = len(comunes) >= 2
+    if not hay_ref:
+        print("  Sin grafo de referencia. Se omiten la similitud posicional,")
+        print("  la calibracion y la comparacion en el marco oficial, porque")
+        print("  las tres requieren posiciones verdaderas conocidas. Las que")
+        print("  no las requieren si se reportan.")
+        print()
+        barrido = []
+        print("  Barrido del termino de robustez:")
+        print(f"    {'epsilon':>8} {'ECSR':>8} {'nitidez':>9}")
+        for eps in cfg.get("barrido_epsilon", BARRIDO_EPSILON):
+            m_eps = modelo_de_config(sub, cfg, epsilon=eps)
+            mu, _ = muestreo.metropolis_bloques(m_eps, n_muestras=6000,
+                                                descarte=4000, semilla=11)
+            e_med, _, _ = metricas.ecsr(m_eps, mu)
+            n_eps, _ = metricas.nitidez(metricas.centrar(mu), lugares, celdas=48)
+            barrido.append({"epsilon": eps, "ecsr": e_med, "nitidez": n_eps})
+            print(f"    {eps:8.2f} {100*e_med:7.2f}% {n_eps:9.4f}")
+
+        datos.guardar_json(RAIZ / "salida" / "resultados.json", {
+            "subgrafo": sub["resumen"],
+            "sin_referencia": True,
+            "ecsr_modelo": media, "ecsr_desviacion": desv,
+            "csr_map": csr_map, "csr_media_posterior": csr_media,
+            "nitidez_media": nit, "areas_creibles": areas,
+            "grado_por_lugar": grado, "correlacion_grado_area": r,
+            "probabilidad_por_relacion": {" ".join(k): v
+                                          for k, v in por_relacion.items()},
+            "barrido_epsilon": barrido,
+        })
+        print("\n  Resultados en salida/resultados.json")
+        return 0
+
     # --- comparacion en el marco del grafo oficial ------------------------
     #
     # Para que la comparacion sea pareja los tres candidatos pasan por el
@@ -85,18 +142,36 @@ def main():
     rel_eval = [r for r in sub["relaciones"]
                 if r["origen"] in evaluables and r["destino"] in evaluables]
 
-    def csr_en_marco(pos_por_nombre):
+    # La escala NO se ajusta por candidato: se iguala el radio de giro al del
+    # grafo oficial, con la misma regla para los tres. Ver la documentacion de
+    # metricas.normalizar_a_escala_comun: ajustarla por minimos cuadrados le
+    # daba escala 0,125 al sistema base, y un mapa comprimido ocho veces
+    # satisface las relaciones de distancia por construccion.
+    objetivo_ev = np.array([verdad[n] for n in evaluables], dtype=float)
+    m_marco = ModeloMapa(evaluables, rel_eval,
+                         d0_cerca=cfg["modelo"]["d0_cerca"],
+                         d0_conecta=cfg["modelo"]["d0_conecta"],
+                         dureza_cono=cfg["modelo"]["dureza_cono"])
+
+    def csr_en_marco(pos_por_nombre, devolver_escala=False):
         P = np.array([pos_por_nombre[n] for n in evaluables], dtype=float)
-        objetivo = np.array([verdad[n] for n in evaluables], dtype=float)
-        esc, t = metricas.ajustar_semejanza(P, objetivo)
-        Q = {n: esc * np.asarray(pos_por_nombre[n]) + t for n in evaluables}
-        m_tmp = ModeloMapa(evaluables, rel_eval)
-        X = np.array([Q[n] for n in evaluables], dtype=float)
-        return m_tmp.fraccion_satisfecha(X)
+        Q, esc = metricas.normalizar_a_escala_comun(P, objetivo_ev)
+        v = m_marco.fraccion_satisfecha(Q)
+        return (v, esc) if devolver_escala else v
 
     map_por_nombre = {n: X_map[lugares.index(n)] for n in evaluables}
-    print(f"  Sobre los {len(evaluables)} lugares con posicion publicada por el")
-    print(f"  sistema base y sus {len(rel_eval)} relaciones, en el marco oficial:")
+    comparable = sub.get("sistema_base_comparable", False)
+    print(f"  Sobre los {len(evaluables)} lugares con posicion del sistema base")
+    print(f"  y sus {len(rel_eval)} relaciones, en el marco oficial:")
+    print(f"  Origen de esas coordenadas: {sub.get('sistema_base_nota', '?')}")
+    if not comparable:
+        print()
+        print("  *** AVISO: COMPARACION NO PAREJA ***")
+        print("  Las coordenadas del sistema base no salieron de esta misma")
+        print("  extraccion, asi que su solver nunca vio estas relaciones.")
+        print("  La cifra de abajo FAVORECE al modelo y no se debe reportar")
+        print("  como comparacion. Corre COMPARAR_BASE.bat para arreglarlo.")
+    print()
     print(f"    sistema base (Z3, 120 s) : {100*csr_en_marco(base):.2f} %")
     print(f"    modelo, configuracion MAP: {100*csr_en_marco(map_por_nombre):.2f} %")
     print(f"    el propio grafo oficial  : {100*csr_en_marco(verdad):.2f} %")
@@ -106,9 +181,55 @@ def main():
     print("  falte para 100 % no lo puede arreglar ningun solver, porque es")
     print("  error de extraccion.")
     print()
-    csr_base = csr_en_marco(base)
-    csr_oficial = csr_en_marco(verdad)
-    csr_map_marco = csr_en_marco(map_por_nombre)
+    csr_base, esc_base = csr_en_marco(base, True)
+    csr_oficial, _ = csr_en_marco(verdad, True)
+    csr_map_marco, esc_mod = csr_en_marco(map_por_nombre, True)
+    print(f"  Escala aplicada por la regla comun: base x{esc_base:.3f}, "
+          f"modelo x{esc_mod:.3f}, oficial x1.000")
+    print()
+
+    # --- sensibilidad del CSR al umbral, que es el resultado importante ---
+    #
+    # El CSR compara distancias contra un umbral que NADIE declara: ni el
+    # trabajo base ni la literatura que lo precede. Este barrido mide que
+    # pasa al moverlo dentro de un rango defendible, y la respuesta es que
+    # el ganador de la comparacion cambia. Se publica siempre, porque sin el
+    # cualquier cifra de CSR de esta tabla se puede elegir a gusto.
+    barrido_d0 = cfg.get("barrido_d0") or []
+    sens = []
+    if barrido_d0:
+        print("  Sensibilidad del CSR al umbral de distancia:")
+        print(f"    {'d0_cerca':>9}{'d0_conecta':>12}{'base':>9}{'modelo':>9}"
+              f"{'oficial':>9}   ganador")
+        for d0c, d0k in barrido_d0:
+            mm = ModeloMapa(evaluables, rel_eval, d0_cerca=d0c, d0_conecta=d0k,
+                            dureza_cono=cfg["modelo"]["dureza_cono"])
+
+            def _csr(pos):
+                Q, _ = metricas.normalizar_a_escala_comun(
+                    np.array([pos[n] for n in evaluables], dtype=float),
+                    objetivo_ev)
+                return mm.fraccion_satisfecha(Q)
+
+            cb, cm, co = _csr(base), _csr(map_por_nombre), _csr(verdad)
+            gan = ("empate" if abs(cb - cm) < 1e-9
+                   else ("modelo" if cm > cb else "sistema base"))
+            print(f"    {d0c:>9.2f}{d0k:>12.2f}{100*cb:>8.1f}%{100*cm:>8.1f}%"
+                  f"{100*co:>8.1f}%   {gan}")
+            sens.append({"d0_cerca": d0c, "d0_conecta": d0k, "csr_base": cb,
+                         "csr_modelo": cm, "csr_oficial": co, "ganador": gan})
+        ganadores = {x["ganador"] for x in sens}
+        print()
+        if len(ganadores) > 1:
+            print("    El ganador CAMBIA con el umbral. Con solo "
+                  f"{len(rel_eval)} relaciones cada una vale "
+                  f"{100/len(rel_eval):.1f} puntos, asi que esta comparacion")
+            print("    no distingue los dos sistemas. No se debe reportar como")
+            print("    ventaja de ninguno de los dos. La conclusion que si")
+            print("    aguanta es la de similitud posicional, mas abajo, que no")
+            print("    depende de ningun umbral.")
+        print()
+
     print("  Probabilidad posterior de satisfaccion, por relacion:")
     for (o, t, d), p in sorted(por_relacion.items(), key=lambda kv: kv[1]):
         print(f"    {p:5.1%}   {o} {t} {d}")
@@ -136,23 +257,44 @@ def main():
     print()
 
     # --- similitud posicional --------------------------------------------
-    media_post = M.mean(axis=0)
-    sim_modelo = metricas.similitud_posicional(media_post, comunes, verdad, lugares)
+    #
+    # Los dos candidatos pasan por EL MISMO tratamiento: a cada uno se le
+    # ajusta su propia semejanza contra las posiciones oficiales, sobre los
+    # mismos lugares. Sin eso la comparacion es tramposa, porque el modelo
+    # recibiria un ajuste de escala y traslacion que el sistema base no.
+    objetivo = np.array([verdad[n] for n in comunes], dtype=float)
     idx = [lugares.index(n) for n in comunes]
-    B = np.array([base[n] for n in comunes], dtype=float)
-    d_base = np.linalg.norm(B - np.array([verdad[n] for n in comunes]), axis=1)
-    sim_base = float(100 * (1 - d_base.mean() / np.sqrt(2)))
-    print(f"  Similitud posicional, media posterior : {sim_modelo:.2f} %")
-    print(f"  Similitud posicional, sistema base    : {sim_base:.2f} %")
+
+    media_post = M.mean(axis=0)
+    e_m, t_m = metricas.ajustar_semejanza(media_post[idx], objetivo)
+    A_mod = e_m * media_post[idx] + t_m
+    sim_modelo = float(100 * (1 - np.linalg.norm(A_mod - objetivo, axis=1).mean()
+                              / np.sqrt(2)))
+
+    disponibles = [n for n in comunes if n in base]
+    if len(disponibles) >= 2:
+        obj_b = np.array([verdad[n] for n in disponibles], dtype=float)
+        B = np.array([base[n] for n in disponibles], dtype=float)
+        e_b, t_b = metricas.ajustar_semejanza(B, obj_b)
+        A_base = e_b * B + t_b
+        sim_base = float(100 * (1 - np.linalg.norm(A_base - obj_b, axis=1).mean()
+                                / np.sqrt(2)))
+    else:
+        sim_base = float("nan")
+
+    print(f"  Similitud posicional contra el grafo oficial, con el mismo")
+    print(f"  ajuste de semejanza aplicado a los dos candidatos:")
+    print(f"    media posterior del modelo : {sim_modelo:.2f} %")
+    print(f"    sistema base               : {sim_base:.2f} %  "
+          f"({len(disponibles)} lugares)")
     print()
 
     # --- barrido de epsilon ----------------------------------------------
     print("  Barrido del termino de robustez:")
     print(f"    {'epsilon':>8} {'ECSR':>8} {'nitidez':>9} {'ECE':>7}")
     barrido = []
-    for eps in BARRIDO_EPSILON:
-        m_eps = ModeloMapa(sub["lugares"], sub["relaciones"],
-                           epsilon=max(eps, 1e-12), ancla="Comarca")
+    for eps in cfg.get("barrido_epsilon", BARRIDO_EPSILON):
+        m_eps = modelo_de_config(sub, cfg, epsilon=eps)
         mu, _ = muestreo.metropolis_bloques(m_eps, n_muestras=6000, descarte=4000,
                                             semilla=11)
         e_med, _, _ = metricas.ecsr(m_eps, mu)
@@ -215,8 +357,8 @@ def main():
         a_.set_facecolor(PAPEL)
 
     fig.tight_layout()
-    fig.savefig(RAIZ / "salida" / "metricas.png", dpi=170, facecolor=PAPEL,
-                bbox_inches="tight", pad_inches=0.25)
+    datos.guardar_figura(fig, RAIZ / "salida" / "metricas.png", dpi=170,
+                         facecolor=PAPEL, bbox_inches="tight", pad_inches=0.25)
     plt.close(fig)
 
     datos.guardar_json(RAIZ / "salida" / "resultados.json", {
@@ -232,6 +374,8 @@ def main():
             "csr_modelo_map": csr_map_marco,
             "csr_grafo_oficial": csr_oficial,
         },
+        "sensibilidad_csr_al_umbral": sens,
+        "escala_regla_comun": {"base": esc_base, "modelo": esc_mod},
         "csr_sistema_base_grafo_completo": 0.70,
         "nitidez_media": nit,
         "areas_creibles": areas,

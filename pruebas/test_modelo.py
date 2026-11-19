@@ -145,7 +145,34 @@ def test_epsilon_rescata_la_bimodalidad():
 # Predicado duro y modelo
 # ---------------------------------------------------------------------------
 
-def test_predicado_duro_coincide_con_el_criterio_del_sistema_base():
+def test_se_colapsan_las_relaciones_reciprocas():
+    """Una afirmacion y su reciproca son una sola restriccion.
+
+    "A al este de B" y "B al oeste de A" son la misma frase del texto. Si
+    entran las dos, el factor se multiplica dos veces y la posterior sale
+    mas angosta de lo que la evidencia justifica.
+    """
+    from mapa_probabilistico.datos import colapsar_reciprocas
+    rel = [{"origen": "A", "tipo": "ESTE_DE", "destino": "B"},
+           {"origen": "B", "tipo": "OESTE_DE", "destino": "A"},
+           {"origen": "A", "tipo": "CERCA_DE", "destino": "C"},
+           {"origen": "C", "tipo": "CERCA_DE", "destino": "A"}]
+    unicas, pares = colapsar_reciprocas(rel)
+    assert len(unicas) == 2
+    assert len(pares) == 2
+    # una direccion contraria entre OTRO par de lugares si es informacion nueva
+    rel2 = rel[:1] + [{"origen": "A", "tipo": "OESTE_DE", "destino": "C"}]
+    assert len(colapsar_reciprocas(rel2)[0]) == 2
+
+
+def test_predicado_duro_se_comporta_segun_lo_declarado():
+    """El predicado de medicion es el declarado, NO el del sistema base.
+
+    El nombre anterior de esta prueba afirmaba que coincidia con el criterio
+    del trabajo base. Es falso: ellos usan radio 0,5 para CERCA_DE, una caja
+    de Chebyshev para CONECTA y un semiplano acotado para las direcciones.
+    Ver la documentacion de satisface_dura.
+    """
     assert bool(satisface_dura([0.0, 0.0], [0.05, 0.0], "CERCA_DE")[0])
     assert not bool(satisface_dura([0.0, 0.0], [0.50, 0.0], "CERCA_DE")[0])
     assert bool(satisface_dura([0.0, 1.0], [0.0, 0.0], "NORTE_DE")[0])
@@ -180,6 +207,37 @@ def test_fraccion_satisfecha_esta_entre_cero_y_uno():
     assert m.fraccion_satisfecha(np.array([[0.0, 0.0], [0.90, 0.0]])) == 0.0
 
 
+def test_predicado_del_modelo_usa_sus_propios_umbrales():
+    """El predicado debe responder al d0 configurado, no al del modulo.
+
+    Antes, las metricas llamaban a satisface_dura con sus valores por
+    omision, de modo que el ECSR daba lo mismo con d0 = 0,02 que con
+    d0 = 0,50. Esta prueba ata el predicado a la configuracion.
+    """
+    rel = [{"origen": "A", "tipo": "CERCA_DE", "destino": "B"}]
+    X = np.array([[0.0, 0.0], [0.30, 0.0]])
+    estricto = ModeloMapa(["A", "B"], rel, d0_cerca=0.10)
+    laxo = ModeloMapa(["A", "B"], rel, d0_cerca=0.50)
+    assert not estricto.satisface(X, 0)
+    assert laxo.satisface(X, 0)
+
+
+def test_region_creible_cuenta_la_masa_que_se_escapa():
+    """El area no puede subestimarse por masa fuera de la ventana.
+
+    Si una parte de la nube cae fuera de la ventana de medicion, esa masa
+    tiene que seguir en el denominador. Normalizar solo por lo de adentro
+    hacia parecer mas nitidas justo a las entidades mas inciertas.
+    """
+    from mapa_probabilistico.metricas import VENTANA, region_creible
+    rng = np.random.default_rng(0)
+    dentro = rng.normal(0.5, 0.05, size=(4000, 2))
+    lejos = np.full((4000, 2), VENTANA[1] + 5.0)
+    a_sin_fuga, _, _ = region_creible(dentro, nivel=0.80)
+    a_con_fuga, _, _ = region_creible(np.vstack([dentro, lejos]), nivel=0.80)
+    assert a_con_fuga > a_sin_fuga
+
+
 def test_camino_rapido_coincide_con_la_definicion():
     """El camino rapido del muestreo no puede separarse de la definicion.
 
@@ -204,6 +262,70 @@ def test_camino_rapido_coincide_con_la_definicion():
         for i in range(3):
             esperado = m.log_densidad(X, solo=m.relaciones_de[i])
             assert abs(esperado - m.log_local(X, i)) < 1e-9
+
+
+# ---------------------------------------------------------------------------
+# Tipado geometrico
+# ---------------------------------------------------------------------------
+
+def test_distancia_a_curva_usa_el_segmento_no_el_extremo():
+    """Lo central del tipado: un rio se mide por su punto mas cercano.
+
+    Un punto frente al centro de un segmento esta cerca del segmento aunque
+    este lejos de sus dos extremos. Tratar la curva como un punto, que es lo
+    que hace el sistema base, da una distancia mucho mayor.
+    """
+    from mapa_probabilistico.geometria import (CURVA, PUNTO, distancia_formas,
+                                               dist_punto_segmento)
+    curva = (CURVA, 0.0, 0.0, 1.0, 0.0, 0.0)
+    punto = (PUNTO, 0.5, 0.1, 0.0, 0.0, 0.0)
+    assert abs(distancia_formas(curva, punto) - 0.1) < 1e-12
+    # contra cualquiera de los extremos la distancia seria mucho mayor
+    assert dist_punto_segmento(0.5, 0.1, 0.0, 0.0, 0.0, 0.0) > 0.5
+
+
+def test_distancia_a_region_es_cero_adentro():
+    from mapa_probabilistico.geometria import PUNTO, REGION, distancia_formas
+    region = (REGION, 0.5, 0.5, 0.0, 0.0, 0.1)
+    dentro = (PUNTO, 0.52, 0.5, 0.0, 0.0, 0.0)
+    fuera = (PUNTO, 0.8, 0.5, 0.0, 0.0, 0.0)
+    assert distancia_formas(region, dentro) == 0.0
+    assert abs(distancia_formas(region, fuera) - 0.2) < 1e-12
+
+
+def test_segmentos_que_se_cruzan_estan_a_distancia_cero():
+    from mapa_probabilistico.geometria import dist_segmento_segmento
+    d = dist_segmento_segmento(0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0)
+    assert d == 0.0
+
+
+def test_una_curva_ocupa_dos_posiciones():
+    from mapa_probabilistico.geometria import CURVA
+    rel = [{"origen": "A", "tipo": "CERCA_DE", "destino": "R"}]
+    m = ModeloMapa(["A", "R"], rel, tipos={"R": CURVA})
+    assert m.n_ranuras == 3
+    assert m.ranuras["R"][0] != m.ranuras["R"][1]
+    assert m.ranuras["A"][0] == m.ranuras["A"][1]
+    X = np.array([[0.5, 0.1], [0.0, 0.0], [1.0, 0.0]])
+    # el representante de la curva es el punto medio de sus extremos
+    assert np.allclose(m.representantes(X)[1], [0.5, 0.0])
+
+
+def test_sin_tipado_el_modelo_se_comporta_igual_que_antes():
+    """El tipado es opcional y no debe alterar el caso por defecto."""
+    rel = [
+        {"origen": "A", "tipo": "CERCA_DE", "destino": "B"},
+        {"origen": "B", "tipo": "NORTE_DE", "destino": "C"},
+    ]
+    m = ModeloMapa(["A", "B", "C"], rel)
+    assert not m.tipado_activo and m.n_ranuras == 3
+    rng = np.random.default_rng(3)
+    for _ in range(20):
+        X = rng.uniform(0, 1, size=(3, 2))
+        assert abs(m.log_densidad(X) - m.log_total_rapido(X)) < 1e-9
+        for i in range(3):
+            assert abs(m.log_densidad(X, solo=m.relaciones_de[i])
+                       - m.log_local(X, i)) < 1e-9
 
 
 if __name__ == "__main__":

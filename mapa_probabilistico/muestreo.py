@@ -45,7 +45,7 @@ def metropolis_bloques(modelo, n_muestras=20000, descarte=5000, salto=0.06,
     diagnostico : dict
     """
     rng = np.random.default_rng(semilla)
-    n = modelo.n_lugares
+    n = getattr(modelo, "n_ranuras", modelo.n_lugares)
 
     if inicial is None:
         X = rng.uniform(0.2, 0.8, size=(n, 2))
