@@ -30,7 +30,7 @@ from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 
-from mapa_probabilistico.datos import guardar_figura  # noqa: E402
+from mapa_probabilistico.datos import coma, guardar_figura  # noqa: E402
 from mapa_probabilistico.metricas import (  # noqa: E402
     VENTANA, alinear_a_referencia, region_creible)
 
@@ -94,7 +94,7 @@ def main():
     for ax, nombre in zip(ejes, lugares):
         i = lugares.index(nombre)
         areas[nombre] = areas_fn(i)
-        panel(ax, M[:, i, :], f"{nombre}   ·   {areas[nombre]:.3f}",
+        panel(ax, M[:, i, :], f"{nombre}   ·   {coma(areas[nombre])}",
               verdad=V.get(nombre), base=B.get(nombre))
     for ax in ejes[n:]:
         ax.axis("off")
@@ -121,7 +121,7 @@ def main():
     for ax, nombre in zip(ejes, foco):
         i = lugares.index(nombre)
         panel(ax, M[:, i, :], nombre, verdad=V.get(nombre), base=B.get(nombre))
-        ax.set_title(f"{nombre}   ·   área creíble 80 % = {areas[nombre]:.3f}",
+        ax.set_title(f"{nombre}   ·   área creíble 80 % = {coma(areas[nombre])}",
                      fontsize=12, color=TINTA, pad=8)
     fig.suptitle("Un punto no es lo mismo que una creencia", fontsize=16, color=TINTA)
     fig.text(0.5, 0.905,

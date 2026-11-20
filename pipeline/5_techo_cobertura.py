@@ -47,8 +47,10 @@ ALIAS_OFICIALES = {
     "Monte Gundabad": ["gundabad"],
     "Salas de Thranduil": ["thranduil"],
     "Erebor": ["erebor", "montana solitaria"],
-    "Valle": ["valle"],
-    "Esgaroth": ["esgaroth", "ciudad del lago"],
+    # "valle" es tambien un sustantivo comun; Valle (Dale) se cuenta aparte,
+    # solo como nombre propio. Ver NOMBRE_PROPIO.
+    "Valle": [],
+    "Esgaroth": ["esgaroth", "esgarot", "ciudad del lago"],  # la traduccion escribe Esgarot
     "Fornost": ["fornost"],
     "Casa de Beorn": ["beorn"],
     "Puertos Grises": ["puertos grises", "mithlond"],
@@ -58,7 +60,8 @@ ALIAS_OFICIALES = {
     "Amon Sul": ["amon sul", "cima de los vientos"],
     "Rivendel": ["rivendel", "imladris"],
     "Tharbad": ["tharbad"],
-    "Puerta Oeste de Moria": ["moria", "khazad"],
+    # "moria" tambien es el verbo (la tarde moria) y esta dentro de "memoria".
+    "Puerta Oeste de Moria": ["khazad"],
     "Dol Guldur": ["dol guldur"],
     "Caras Galadhon": ["caras galadhon", "lothlorien", "lorien"],
     "Isengard": ["isengard", "orthanc"],
@@ -88,6 +91,25 @@ def plano(s):
     return "".join(c for c in s if unicodedata.category(c) != "Mn")
 
 
+#: Lugares cuyo nombre es tambien una palabra comun. Se cuentan sobre el
+#: texto con mayusculas, como nombre propio y excluyendo otros topónimos que
+#: empiezan igual (Valle Largo, Valle del Agua, Valle del Tornasauce...).
+NOMBRE_PROPIO = {
+    "Valle": r"(?<![A-Za-zÑñ])Valle(?! Largo)(?! del )(?![A-Za-zÑñ])",
+    "Puerta Oeste de Moria": r"(?<![A-Za-zÑñ])Moria(?![A-Za-zÑñ])",
+}
+
+
+def contar(texto_plano, alias):
+    """Ocurrencias de un alias como palabra completa, no como subcadena.
+
+    Contar subcadenas inflaba el recuento: "moria" aparece dentro de
+    "memoria" e "inmemorial", y "umbar" dentro de "zumbar".
+    """
+    patron = r"(?<![a-z0-9ñ])" + re.escape(plano(alias)) + r"(?![a-zñ])"
+    return len(re.findall(patron, texto_plano))
+
+
 def leer_texto(ruta):
     ruta = Path(ruta)
     if ruta.suffix.lower() == ".txt":
@@ -110,7 +132,11 @@ def main(ruta_texto=None):
             print(f"No encuentro: {r}")
             return 1
 
-    texto = plano(leer_texto(ruta_texto))
+    # Las lineas se unen para no perder nombres partidos por un salto.
+    crudo = re.sub(r"\s+", " ", leer_texto(ruta_texto))
+    crudo_sin_tildes = "".join(c for c in unicodedata.normalize("NFD", crudo)
+                               if unicodedata.category(c) != "Mn")
+    texto = plano(crudo)
     oficial = json.loads(RUTA_OFICIAL.read_text(encoding="utf-8"))["coords"]
     extraccion = json.loads(RUTA_EXTRACCION.read_text(encoding="utf-8"))
     extraidos = set(extraccion["lugares"])
@@ -122,7 +148,9 @@ def main(ruta_texto=None):
     mencionados, ausentes = [], []
     for nombre in oficial:
         vs = ALIAS_OFICIALES.get(nombre, [plano(nombre)])
-        n = sum(texto.count(plano(v)) for v in vs)
+        n = sum(contar(texto, v) for v in vs)
+        if nombre in NOMBRE_PROPIO:
+            n += len(re.findall(NOMBRE_PROPIO[nombre], crudo_sin_tildes))
         hallado = EQUIVALE_EN_EXTRACCION.get(nombre, nombre) in extraidos
         (mencionados if n > 0 else ausentes).append(
             {"lugar": nombre, "menciones": n, "extraido": hallado})
@@ -158,7 +186,7 @@ def main(ruta_texto=None):
     print("  La cobertura de nodos no mide la calidad de la extraccion:")
     print("  mide ademas cuanto se solapan el texto y el grafo de referencia.")
     print(f"  Con este par, {n_ofi - n_men} de {n_ofi} lugares del grafo son")
-    print("  inalcanzables, porque pertenecen a volumenes posteriores de la obra.")
+    print("  inalcanzables, porque pertenecen a partes posteriores de la obra.")
     print("  Medido contra lo que el texto si nombra, la extraccion del trabajo")
     print(f"  base acierta {100*n_hall/n_men:.0f} %, no {100*n_hall/n_ofi:.0f} %.")
 

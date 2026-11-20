@@ -335,3 +335,29 @@ def guardar_figura(fig, ruta, **kw):
         print(f"  Probablemente esta abierto en el visor de imagenes.")
         print(f"  Se guardo como {alt.name}. Cierra el visor y vuelve a correr.")
         return alt
+
+
+# --- formato numerico de las figuras ---------------------------------------
+#
+# El informe usa coma decimal (convencion del espanol). Las figuras deben
+# usar la misma, o el lector ve 0,048 en el texto y 0.048 en la figura.
+
+def coma(x, decimales=3):
+    """Numero con coma decimal: coma(0.0481) -> '0,048'."""
+    return f"{x:.{decimales}f}".replace(".", ",")
+
+
+def ejes_con_coma(*ejes):
+    """Hace que las marcas de los ejes usen coma decimal."""
+    from matplotlib.ticker import ScalarFormatter
+
+    class _Coma(ScalarFormatter):
+        def __call__(self, x, pos=None):
+            return super().__call__(x, pos).replace(".", ",")
+
+    for ax in ejes:
+        for eje in (ax.xaxis, ax.yaxis):
+            # Solo los ejes numericos: un eje con nombres (barras
+            # horizontales, por ejemplo) conserva sus etiquetas.
+            if type(eje.get_major_formatter()) is ScalarFormatter:
+                eje.set_major_formatter(_Coma())

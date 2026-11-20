@@ -1,25 +1,20 @@
 {
-  "fuente_texto": "/tmp/claude-0/txt/fellowship.txt",
+  "fuente_texto": "5 Sistema base/data/textos/J.R.R. Tolkien La Comunidad del anillo I.pdf",
   "n_oficiales": 33,
-  "n_mencionados": 15,
+  "n_mencionados": 14,
   "n_extraidos_de_los_oficiales": 9,
   "cobertura_reportada": 0.2727272727272727,
-  "techo_estructural": 0.45454545454545453,
-  "recall_sobre_lo_mencionable": 0.6,
+  "techo_estructural": 0.42424242424242425,
+  "recall_sobre_lo_mencionable": 0.6428571428571429,
   "mencionados": [
     {
       "lugar": "La Comarca",
-      "menciones": 149,
+      "menciones": 171,
       "extraido": true
     },
     {
       "lugar": "Bree",
       "menciones": 94,
-      "extraido": true
-    },
-    {
-      "lugar": "Valle",
-      "menciones": 49,
       "extraido": true
     },
     {
@@ -34,12 +29,7 @@
     },
     {
       "lugar": "Amon Sul",
-      "menciones": 18,
-      "extraido": false
-    },
-    {
-      "lugar": "Puerta Oeste de Moria",
-      "menciones": 13,
+      "menciones": 21,
       "extraido": false
     },
     {
@@ -48,14 +38,19 @@
       "extraido": true
     },
     {
-      "lugar": "Fornost",
+      "lugar": "Monte del Destino",
+      "menciones": 4,
+      "extraido": false
+    },
+    {
+      "lugar": "Valle",
       "menciones": 3,
       "extraido": true
     },
     {
-      "lugar": "Monte del Destino",
+      "lugar": "Fornost",
       "menciones": 3,
-      "extraido": false
+      "extraido": true
     },
     {
       "lugar": "Carn Dum",
@@ -63,19 +58,19 @@
       "extraido": false
     },
     {
+      "lugar": "Erebor",
+      "menciones": 2,
+      "extraido": true
+    },
+    {
+      "lugar": "Esgaroth",
+      "menciones": 2,
+      "extraido": false
+    },
+    {
       "lugar": "Minas Tirith",
       "menciones": 2,
       "extraido": false
-    },
-    {
-      "lugar": "Umbar",
-      "menciones": 2,
-      "extraido": false
-    },
-    {
-      "lugar": "Erebor",
-      "menciones": 1,
-      "extraido": true
     },
     {
       "lugar": "Tharbad",
@@ -86,8 +81,8 @@
   "ausentes": [
     "Monte Gundabad",
     "Salas de Thranduil",
-    "Esgaroth",
     "Casa de Beorn",
+    "Puerta Oeste de Moria",
     "Dol Guldur",
     "Caras Galadhon",
     "Isengard",
@@ -101,6 +96,7 @@
     "Cirith Ungol",
     "Barad-dur",
     "Pelargir",
-    "Dol Amroth"
+    "Dol Amroth",
+    "Umbar"
   ]
 }

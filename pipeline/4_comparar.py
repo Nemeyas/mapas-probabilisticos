@@ -332,7 +332,7 @@ def main():
     ax.set_xlim(0.45, 1.0); ax.set_ylim(0, 1.05)
     ax.set_xlabel("nivel nominal", fontsize=9.5, color=TENUE)
     ax.set_ylabel("cobertura empírica", fontsize=9.5, color=TENUE)
-    ax.set_title(f"Calibración   ·   ECE = {ece:.3f}", fontsize=12, color=TINTA, pad=10)
+    ax.set_title(f"Calibración   ·   ECE = {datos.coma(ece)}", fontsize=12, color=TINTA, pad=10)
     ax.text(0.47, 0.06, "bajo la diagonal = confiado de más",
             fontsize=8.5, color=TENUE)
 
@@ -350,6 +350,7 @@ def main():
                  fontsize=12, color=TINTA, pad=10)
     ax.axvline(EPSILON, color=TINTA, lw=1.0, ls=":")
 
+    datos.ejes_con_coma(*ejes, ax2)
     for a_ in list(ejes) + [ax2]:
         for s in a_.spines.values():
             s.set_color("#D8CEC2")
